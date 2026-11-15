@@ -5,8 +5,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Telecom Demo Admin",
-  description: "Telecom user administration portal",
+  title: "Singtel Ops Console",
+  description: "Operations console for Singtel, GOMO and hi!Card mobile services (demo)",
 }
 
 export default function RootLayout({

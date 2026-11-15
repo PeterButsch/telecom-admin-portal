@@ -93,8 +93,9 @@ public class AccountController {
         account.setCreditLimit(prepaid ? null : CONSUMER_CREDIT_LIMIT);
         account.setAccountNumber(newAccountNumber());
         Account saved = repository.save(account);
-        audit.record(AuditAction.ACCOUNT_CREATED, saved.getId(), "Opened " + saved.getType().name().toLowerCase(Locale.ROOT) + " account " + saved.getAccountNumber() + " for customer "
-                + customer.getCustomerNumber());
+        audit.record(AuditAction.ACCOUNT_CREATED, saved.getId(),
+                "Opened " + saved.getType().name().toLowerCase(Locale.ROOT) + " account " + saved.getAccountNumber()
+                        + " for customer " + customer.getCustomerNumber());
         return AccountResponse.from(saved, 0);
     }
 

@@ -4,7 +4,6 @@ import * as React from "react"
 import { usePathname } from "next/navigation"
 
 import { useAuth } from "@/components/auth-provider"
-import { Logo } from "@/components/logo"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
@@ -17,14 +16,6 @@ import {
 } from "@/components/ui/sidebar"
 import { visibleNavItems } from "@/lib/navigation"
 
-const teams = [
-  {
-    name: "Telecom Demo",
-    logo: Logo,
-    plan: "Admin Portal",
-  },
-]
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const { can } = useAuth()
@@ -35,7 +26,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams} />
+        <TeamSwitcher product="Ops Console" />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={operations} />

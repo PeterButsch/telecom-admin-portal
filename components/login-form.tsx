@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FormError } from "@/components/form-error"
 import { TextField } from "@/components/form-fields"
-import { Logo } from "@/components/logo"
+import { Logo, Wordmark } from "@/components/logo"
 import { errorMessage } from "@/lib/api"
 
 export interface DemoAccount {
@@ -59,11 +59,8 @@ export function LoginForm({ onSignIn, demoAccounts, notice }: LoginFormProps) {
       <Card>
         <CardHeader className="space-y-3">
           <div className="flex items-center gap-3">
-            <Logo className="text-primary size-9" />
-            <div>
-              <div className="text-headline-3 text-primary">Telecom Demo</div>
-              <div className="text-caption text-muted-foreground">Admin Portal</div>
-            </div>
+            <Logo className="size-9" />
+            <Wordmark product="Ops Console" />
           </div>
           <CardTitle className="text-headline-2">Sign in</CardTitle>
           <CardDescription>Use your staff account to open the operations console.</CardDescription>

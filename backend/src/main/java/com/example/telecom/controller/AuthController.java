@@ -58,7 +58,9 @@ public class AuthController {
         this.demoPassword = demoPassword;
     }
 
-    /** Returns the CSRF token; the response also sets it as the XSRF-TOKEN cookie. */
+    /**
+     * Returns the CSRF token; the response also sets it as the XSRF-TOKEN cookie.
+     */
     @GetMapping("/csrf")
     public Map<String, String> csrf(CsrfToken token) {
         return Map.of("token", token.getToken());
@@ -83,8 +85,8 @@ public class AuthController {
     }
 
     /**
-     * Changes the signed-in user's own password. Their other sessions end; this
-     * one continues.
+     * Changes the signed-in user's own password. Their other sessions end; this one
+     * continues.
      */
     @PostMapping("/password")
     @Transactional
@@ -107,8 +109,8 @@ public class AuthController {
     }
 
     /**
-     * Lists the demo accounts and their shared password so evaluators can sign
-     * in; empty unless demo data is enabled.
+     * Lists the demo accounts and their shared password so evaluators can sign in;
+     * empty unless demo data is enabled.
      */
     @GetMapping("/demo-accounts")
     @Transactional(readOnly = true)
@@ -118,9 +120,8 @@ public class AuthController {
         }
         List<DemoAccount> accounts = StaffAccountsInitializer.DEMO_STAFF.stream()
                 .map(staff -> users.findByUsernameIgnoreCase(staff.username()).orElse(null))
-                .filter(user -> user != null && user.isActive())
-                .map(user -> new DemoAccount(user.getUsername(), user.getDisplayName(), user.getRole().name(),
-                        user.getRole().label()))
+                .filter(user -> user != null && user.isActive()).map(user -> new DemoAccount(user.getUsername(),
+                        user.getDisplayName(), user.getRole().name(), user.getRole().label()))
                 .toList();
         return new DemoAccounts(demoPassword, accounts);
     }
@@ -132,8 +133,7 @@ public class AuthController {
         return users.findById(principal.id()).orElseThrow(() -> new UnauthorizedException("Sign in to continue."));
     }
 
-    public record LoginRequest(@NotBlank @Size(max = 100) String username,
-            @NotNull @Size(max = 200) String password) {
+    public record LoginRequest(@NotBlank @Size(max = 100) String username, @NotNull @Size(max = 200) String password) {
     }
 
     public record PasswordChangeRequest(@NotNull @Size(max = 200) String currentPassword,

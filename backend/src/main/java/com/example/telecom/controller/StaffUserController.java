@@ -36,8 +36,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Staff account administration. Accounts are deactivated rather than deleted
- * so the audit trail keeps pointing at real people.
+ * Staff account administration. Accounts are deactivated rather than deleted so
+ * the audit trail keeps pointing at real people.
  */
 @RestController
 @RequestMapping("/api/staff-users")
@@ -102,7 +102,8 @@ public class StaffUserController {
         ChangeSet changes = applyChanges(user, request);
         StaffUser saved = repository.save(user);
         if (!changes.isEmpty()) {
-            audit.record(AuditAction.STAFF_USER_UPDATED, id, "Updated " + saved.getUsername() + ": " + changes.describe());
+            audit.record(AuditAction.STAFF_USER_UPDATED, id,
+                    "Updated " + saved.getUsername() + ": " + changes.describe());
         }
         return StaffUserResponse.from(saved, Times.now());
     }
@@ -159,8 +160,8 @@ public class StaffUserController {
     }
 
     /**
-     * Sets a new password chosen by the administrator. It ends the user's
-     * sessions and clears any lock.
+     * Sets a new password chosen by the administrator. It ends the user's sessions
+     * and clears any lock.
      */
     @PostMapping("/{id}/password")
     @Transactional

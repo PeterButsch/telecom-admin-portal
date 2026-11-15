@@ -1,82 +1,44 @@
 "use client"
 
-import { DollarSign, LifeBuoy, Loader2, Signal, Smartphone, Users } from "lucide-react"
-import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Loader2, RefreshCw } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
+  BrandRevenueChart,
+  CaseSlaChart,
+  LineMovementChart,
+  PortingChart,
+} from "@/components/dashboard-charts"
+import { DashboardKpis } from "@/components/dashboard-kpis"
+import { BrandTable, SegmentComparison } from "@/components/dashboard-tables"
 import { PageShell } from "@/components/page-shell"
-import { useDashboardStats } from "@/hooks/use-dashboard-stats"
-import { formatMoney } from "@/lib/format"
-import { label } from "@/lib/labels"
+import { useDashboardOverview } from "@/hooks/use-dashboard-overview"
+import { formatCount, formatDateTime, formatSigned } from "@/lib/format"
 
-const TOP_PLANS = 10
-const palette = (index: number) => `var(--chart-${(index % 8) + 1})`
-
-/** Builds a chart config that gives each category its own colour and a readable label. */
-function seriesConfig(
-  names: string[],
-  valueLabel: string,
-  valueKey = "value",
-  colours: Record<string, string> = {}
-): ChartConfig {
-  const config: ChartConfig = { [valueKey]: { label: valueLabel } }
-  names.forEach((name, i) => {
-    config[name] = { label: label(name), color: colours[name] ?? palette(i) }
-  })
-  return config
-}
-
-function withFill<T extends { name: string }>(rows: T[], config: ChartConfig) {
-  return rows.map((row) => ({ ...row, fill: config[row.name]?.color ?? palette(0) }))
-}
-
-const STATUS_COLOURS: Record<string, string> = {
-  OPEN: "var(--chart-1)",
-  IN_PROGRESS: "var(--chart-4)",
-  PENDING_CUSTOMER: "var(--chart-2)",
-  RESOLVED: "var(--chart-3)",
-  CLOSED: "var(--chart-6)",
-  ASSIGNED: "var(--chart-1)",
-  AVAILABLE: "var(--chart-3)",
-  DAMAGED: "var(--chart-4)",
-  LOST: "var(--chart-5)",
-}
-
-function Kpi({
+function Section({
   title,
-  value,
-  caption,
-  icon: Icon,
+  description,
+  children,
 }: {
   title: string
-  value: string
-  caption: string
-  icon: React.ElementType
+  description: string
+  children: React.ReactNode
 }) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-body-small">{title}</CardTitle>
-        <Icon className="text-muted-foreground h-4 w-4" />
+    <Card role="region" aria-label={title}>
+      <CardHeader>
+        <CardTitle className="text-headline-3">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="text-headline-2">{value}</div>
-        <p className="text-caption text-muted-foreground">{caption}</p>
-      </CardContent>
+      <CardContent className="space-y-4">{children}</CardContent>
     </Card>
   )
 }
 
 export default function DashboardPage() {
-  const { stats, linesByPlan, devicesByStatus, casesByStatus, revenueByPlan, loading, error } =
-    useDashboardStats()
+  const { overview, loading, error, refresh } = useDashboardOverview()
 
-  if (loading || error) {
+  if (!overview) {
     return (
       <PageShell title="Dashboard" fitToWindow={false}>
         <div className="flex h-[60vh] items-center justify-center">
@@ -95,177 +57,68 @@ export default function DashboardPage() {
     )
   }
 
-  const topLines = linesByPlan.slice(0, TOP_PLANS)
-  const topRevenue = revenueByPlan.slice(0, TOP_PLANS)
-  const linesConfig = seriesConfig(
-    topLines.map((r) => r.name),
-    "Lines"
-  )
-  const revenueConfig = seriesConfig(
-    topRevenue.map((r) => r.name),
-    "Revenue",
-    "revenue"
-  )
-  const devicesConfig = seriesConfig(
-    devicesByStatus.map((r) => r.name),
-    "Devices",
-    "value",
-    STATUS_COLOURS
-  )
-  const casesConfig = seriesConfig(
-    casesByStatus.map((r) => r.name),
-    "Cases",
-    "value",
-    STATUS_COLOURS
-  )
+  const { kpis, brands, segments, months, porting, open_cases: cases } = overview
+  const portIns = porting.reduce((sum, row) => sum + row.port_ins, 0)
+  const portOuts = porting.reduce((sum, row) => sum + row.port_outs, 0)
 
   return (
     <PageShell title="Dashboard" fitToWindow={false}>
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
-        <Kpi
-          title="Active Customers"
-          value={(stats?.active_customers ?? 0).toLocaleString()}
-          caption="Consumer and business accounts"
-          icon={Users}
-        />
-        <Kpi
-          title="Active Lines"
-          value={(stats?.active_lines ?? 0).toLocaleString()}
-          caption="Mobile lines in service"
-          icon={Signal}
-        />
-        <Kpi
-          title="Monthly Recurring Revenue"
-          value={formatMoney(stats?.monthly_revenue ?? 0)}
-          caption="Plan charges on active lines"
-          icon={DollarSign}
-        />
-        <Kpi
-          title="Open Cases"
-          value={(stats?.open_cases ?? 0).toLocaleString()}
-          caption="Not yet resolved"
-          icon={LifeBuoy}
-        />
-        <Kpi
-          title="Devices in Use"
-          value={(stats?.devices_in_use ?? 0).toLocaleString()}
-          caption="Assigned to a line"
-          icon={Smartphone}
-        />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-body-small text-muted-foreground">
+          Figures as at {formatDateTime(overview.as_of)} Singapore time. Revenue is the monthly plan
+          price of every active line.
+        </p>
+        <div className="flex items-center gap-2">
+          {error && (
+            <span role="alert" className="text-destructive text-sm">
+              {error}
+            </span>
+          )}
+          <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
+            <RefreshCw className={loading ? "animate-spin" : undefined} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-headline-3">
-              Active Lines by Plan (top {TOP_PLANS})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={linesConfig} className="h-[300px] w-full">
-              <BarChart accessibilityLayer data={withFill(topLines, linesConfig)} layout="vertical">
-                <CartesianGrid horizontal={false} />
-                <XAxis type="number" tickLine={false} axisLine={false} />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  tickLine={false}
-                  axisLine={false}
-                  width={140}
-                />
-                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                <Bar dataKey="value" radius={4} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+      <DashboardKpis kpis={kpis} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-headline-3">
-              Monthly Revenue by Plan (top {TOP_PLANS})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={revenueConfig} className="h-[300px] w-full">
-              <BarChart
-                accessibilityLayer
-                data={withFill(topRevenue, revenueConfig)}
-                layout="vertical"
-              >
-                <CartesianGrid horizontal={false} />
-                <XAxis
-                  type="number"
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value: number) => `S$${value.toLocaleString()}`}
-                />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  tickLine={false}
-                  axisLine={false}
-                  width={140}
-                />
-                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                <Bar dataKey="revenue" radius={4} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Section
+          title="Revenue and ARPU by brand"
+          description="Monthly recurring revenue (MRR) and average revenue per active line (ARPU)."
+        >
+          <BrandRevenueChart brands={brands} />
+          <BrandTable brands={brands} />
+        </Section>
+        <Section
+          title="Consumer and enterprise"
+          description={`Individual and business customers. ${formatCount(kpis.active_customers)} active customers in total.`}
+        >
+          <SegmentComparison segments={segments} />
+        </Section>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-headline-3">Device Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={devicesConfig} className="h-[250px] w-full">
-              <BarChart
-                accessibilityLayer
-                data={withFill(devicesByStatus, devicesConfig)}
-                layout="vertical"
-              >
-                <CartesianGrid horizontal={false} />
-                <XAxis type="number" tickLine={false} axisLine={false} />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value: string) => label(value)}
-                  width={85}
-                />
-                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-                <Bar dataKey="value" radius={4} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+      <Section
+        title="Line movement and churn"
+        description="Activations, terminations and churn (terminations as a share of lines in service at the start of the month) for the last 12 months. * Month to date."
+      >
+        <LineMovementChart months={months} />
+      </Section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-headline-3">Case Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={casesConfig} className="mx-auto h-[250px] w-full">
-              <PieChart accessibilityLayer>
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent hideLabel nameKey="name" />}
-                />
-                <Pie
-                  data={withFill(casesByStatus, casesConfig)}
-                  dataKey="value"
-                  nameKey="name"
-                  innerRadius={60}
-                  outerRadius={100}
-                />
-              </PieChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Section
+          title="Porting by operator"
+          description={`Numbers ported in from and out to other operators in the last 12 months: ${formatCount(portIns)} in, ${formatCount(portOuts)} out (net ${formatSigned(portIns - portOuts)}).`}
+        >
+          <PortingChart porting={porting} />
+        </Section>
+        <Section
+          title="Open cases by priority"
+          description={`${formatCount(kpis.open_cases)} open cases, ${formatCount(kpis.breached_open_cases)} past their SLA due time.`}
+        >
+          <CaseSlaChart cases={cases} />
+        </Section>
       </div>
     </PageShell>
   )

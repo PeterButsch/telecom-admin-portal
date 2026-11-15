@@ -93,8 +93,8 @@ public class PlanController {
         apply(plan, request);
         Plan saved = repository.save(plan);
         LOG.info("Plan created: id={}", saved.getId());
-        audit.record(AuditAction.PLAN_CREATED, saved.getId(), "Created plan " + saved.getCode() + " ("
-                + saved.getName() + ") at $" + CustomerController.toMoney(saved.getMonthlyPrice()) + "/month");
+        audit.record(AuditAction.PLAN_CREATED, saved.getId(), "Created plan " + saved.getCode() + " (" + saved.getName()
+                + ") at $" + CustomerController.toMoney(saved.getMonthlyPrice()) + "/month");
         return PlanResponse.from(saved, 0);
     }
 

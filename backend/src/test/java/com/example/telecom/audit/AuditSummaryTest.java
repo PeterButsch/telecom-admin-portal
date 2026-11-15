@@ -17,9 +17,9 @@ class AuditSummaryTest {
 
     @Test
     void changeSetsListPersonalFieldsWithoutValues() {
-        ChangeSet changes = new ChangeSet().field("email", "a@example.com", "b@example.com")
-                .field("phone", "1", "1").value("price", new BigDecimal("40.00"), new BigDecimal("45"))
-                .value("limit", 100, null).value("same", new BigDecimal("1.0"), new BigDecimal("1.00"));
+        ChangeSet changes = new ChangeSet().field("email", "a@example.com", "b@example.com").field("phone", "1", "1")
+                .value("price", new BigDecimal("40.00"), new BigDecimal("45")).value("limit", 100, null)
+                .value("same", new BigDecimal("1.0"), new BigDecimal("1.00"));
         assertEquals("email, price 40 → 45, limit 100 → none", changes.describe());
         assertEquals("no changes", new ChangeSet().describe());
     }

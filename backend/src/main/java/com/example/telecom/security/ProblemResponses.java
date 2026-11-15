@@ -18,8 +18,8 @@ final class ProblemResponses {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write("{\"type\":\"about:blank\",\"title\":\"" + escape(title) + "\",\"status\":"
-                + status + ",\"detail\":\"" + escape(detail) + "\"}");
+        response.getWriter().write("{\"type\":\"about:blank\",\"title\":\"" + escape(title) + "\",\"status\":" + status
+                + ",\"detail\":\"" + escape(detail) + "\"}");
     }
 
     private static String escape(String value) {

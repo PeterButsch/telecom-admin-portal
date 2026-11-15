@@ -81,10 +81,11 @@ class AuditTrailTest extends IntegrationTestSupport {
     void auditorsCanFilterTheTrail() throws Exception {
         patchJson("/api/customers/1", "{\"status\":\"SUSPENDED\"}").andExpect(status().isOk());
         patchJson("/api/customers/2", "{\"status\":\"SUSPENDED\"}").andExpect(status().isOk());
-        mockMvc.perform(get("/api/audit-events").with(as(StaffRole.FRAUD_ANALYST))
-                .param("entityType", "CUSTOMER").param("entityId", "2")).andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(1))
-                .andExpect(jsonPath("$.content[0].summary").value("Updated customer C1000002: status ACTIVE → SUSPENDED"))
+        mockMvc.perform(get("/api/audit-events")
+                .with(as(StaffRole.FRAUD_ANALYST)).param("entityType", "CUSTOMER").param("entityId", "2"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(
+                        jsonPath("$.content[0].summary").value("Updated customer C1000002: status ACTIVE → SUSPENDED"))
                 .andExpect(jsonPath("$.content[0].actor_role_label").value("Administrator"));
         mockMvc.perform(get("/api/audit-events").param("action", "CUSTOMER_UPDATED").param("q", "c1000001"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].entity_id").value("1"));

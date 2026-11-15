@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest"
 import {
+  formatCount,
   formatDate,
   formatDateTime,
   formatMoney,
+  formatMonth,
   formatMsisdn,
+  formatPercent,
   formatShortDateTime,
+  formatSigned,
   formatUsage,
 } from "@/lib/format"
 import { label, options } from "@/lib/labels"
@@ -84,5 +88,27 @@ describe("label", () => {
       { value: "SINGTEL", label: "Singtel" },
       { value: "SIM_ONLY", label: "SIM only" },
     ])
+  })
+})
+
+describe("dashboard figures", () => {
+  it("formats counts and signed changes", () => {
+    expect(formatCount(1774)).toBe("1,774")
+    expect(formatCount(null)).toBe("-")
+    expect(formatSigned(12)).toBe("+12")
+    expect(formatSigned(-1500)).toBe("-1,500")
+    expect(formatSigned(0)).toBe("0")
+  })
+
+  it("formats rates and shows a dash when there is none", () => {
+    expect(formatPercent(66.666, 2)).toBe("66.67%")
+    expect(formatPercent(50)).toBe("50.0%")
+    expect(formatPercent(null)).toBe("-")
+  })
+
+  it("names calendar months", () => {
+    expect(formatMonth("2026-02")).toBe("Feb 2026")
+    expect(formatMonth("2025-12")).toBe("Dec 2025")
+    expect(formatMonth("2025-13")).toBe("2025-13")
   })
 })

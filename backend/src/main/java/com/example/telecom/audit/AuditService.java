@@ -23,8 +23,7 @@ public class AuditService {
 
     private static final int MAX_SUMMARY = 1000;
     private static final int MAX_USERNAME = 60;
-    private static final Pattern ID_NUMBER = Pattern.compile("\\b[STFGM]\\d{7}[A-Z]\\b",
-            Pattern.CASE_INSENSITIVE);
+    private static final Pattern ID_NUMBER = Pattern.compile("\\b[STFGM]\\d{7}[A-Z]\\b", Pattern.CASE_INSENSITIVE);
 
     private final AuditEventRepository repository;
 
@@ -37,8 +36,7 @@ public class AuditService {
         record(Actor.current(), action, AuditEvent.Outcome.SUCCESS, entityId, summary);
     }
 
-    public void record(Actor actor, AuditAction action, AuditEvent.Outcome outcome, Object entityId,
-            String summary) {
+    public void record(Actor actor, AuditAction action, AuditEvent.Outcome outcome, Object entityId, String summary) {
         AuditEvent event = new AuditEvent();
         event.setOccurredAt(Times.now());
         event.setActorId(actor.id());
@@ -77,7 +75,9 @@ public class AuditService {
             return new Actor(user.getId(), user.getUsername(), user.getRole());
         }
 
-        /** An actor that only has the username someone typed, such as a failed sign-in. */
+        /**
+         * An actor that only has the username someone typed, such as a failed sign-in.
+         */
         public static Actor unverified(String username) {
             return new Actor(null, username, null);
         }

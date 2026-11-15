@@ -71,3 +71,43 @@ export function formatUsage(quantity: number, unit: string): string {
   if (unit === "MIN") return `${quantity} min`
   return `${quantity} ${unit}`
 }
+
+const count = new Intl.NumberFormat("en-SG")
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+]
+
+/** A whole number with thousands separators, for example "1,774". */
+export function formatCount(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-"
+  return count.format(value)
+}
+
+/** A change with its sign, for example "+12", "-3" or "0". */
+export function formatSigned(value: number): string {
+  return value > 0 ? `+${count.format(value)}` : count.format(value)
+}
+
+/** A percentage such as "2.45%", or a dash when there is no rate (nothing to divide by). */
+export function formatPercent(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "-"
+  return `${value.toFixed(digits)}%`
+}
+
+/** A "yyyy-mm" calendar month as "Feb 2026". */
+export function formatMonth(month: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(month)
+  const name = match ? MONTH_NAMES[Number(match[2]) - 1] : undefined
+  return match && name ? `${name} ${match[1]}` : month
+}

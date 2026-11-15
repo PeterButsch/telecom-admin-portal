@@ -112,9 +112,9 @@ public class SupportCaseController {
         supportCase.setCaseNumber("CS" + (1_000_000 + repository.findMaxId() + 1));
         SupportCase saved = repository.save(supportCase);
         LOG.info("Case created: id={}, number={}", saved.getId(), saved.getCaseNumber());
-        audit.record(AuditAction.CASE_CREATED, saved.getId(), "Opened " + saved.getPriority() + " "
-                + saved.getCategory() + " case " + saved.getCaseNumber() + " for customer "
-                + customer.getCustomerNumber());
+        audit.record(AuditAction.CASE_CREATED, saved.getId(),
+                "Opened " + saved.getPriority() + " " + saved.getCategory() + " case " + saved.getCaseNumber()
+                        + " for customer " + customer.getCustomerNumber());
         return CaseResponse.from(saved, now);
     }
 

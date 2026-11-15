@@ -41,6 +41,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-brand: var(--brand);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -71,7 +72,10 @@
   --card-foreground: #000000;
   --popover: #ffffff;
   --popover-foreground: #000000;
-  --primary: #2563eb;
+  /* Singtel red. --brand is the logo colour; --primary is a shade darker so white text on it
+     stays readable (5.7:1). */
+  --brand: #ed1c24;
+  --primary: #d0021b;
   --primary-foreground: #ffffff;
   --secondary: #f7f7f8;
   --secondary-foreground: #000000;
@@ -79,20 +83,20 @@
   --muted-foreground: rgba(0, 0, 0, 0.65);
   --accent: #f7f7f8;
   --accent-foreground: #000000;
-  --destructive: #e82010;
+  --destructive: #9f1239;
   --destructive-foreground: #ffffff;
   --border: rgba(0, 0, 0, 0.14);
   --input: rgba(0, 0, 0, 0.14);
-  --ring: #2238df;
+  --ring: #d0021b;
 
   /* Chart Colors */
-  --chart-1: #2563eb;
+  --chart-1: #ed1c24;
   --chart-2: #7c3aed;
   --chart-3: #059669;
-  --chart-4: #d97706;
-  --chart-5: #dc2626;
+  --chart-4: #f59e0b;
+  --chart-5: #475569;
   --chart-6: #0891b2;
-  --chart-7: #4f46e5;
+  --chart-7: #be123c;
   --chart-8: #9333ea;
 
   /* Functional Colors */
@@ -111,12 +115,12 @@
   /* Sidebar */
   --sidebar: #f7f7f8;
   --sidebar-foreground: #000000;
-  --sidebar-primary: #2563eb;
+  --sidebar-primary: #d0021b;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #ffffff;
   --sidebar-accent-foreground: #000000;
   --sidebar-border: rgba(0, 0, 0, 0.14);
-  --sidebar-ring: #2238df;
+  --sidebar-ring: #d0021b;
 }
 
 .dark {
@@ -127,7 +131,8 @@
   --card-foreground: #ffffff;
   --popover: #141414;
   --popover-foreground: #ffffff;
-  --primary: #60a5fa;
+  --brand: #ed1c24;
+  --primary: #e8202f;
   --primary-foreground: #ffffff;
   --secondary: #1a1a1a;
   --secondary-foreground: #ffffff;
@@ -135,18 +140,18 @@
   --muted-foreground: rgba(255, 255, 255, 0.65);
   --accent: #1a1a1a;
   --accent-foreground: #ffffff;
-  --destructive: #ff5c5c;
+  --destructive: #fb7185;
   --destructive-foreground: #000000;
   --border: rgba(255, 255, 255, 0.14);
   --input: rgba(255, 255, 255, 0.14);
-  --ring: #6b7eff;
+  --ring: #f87171;
 
   /* Chart Colors */
-  --chart-1: #60a5fa;
+  --chart-1: #f43f4b;
   --chart-2: #a78bfa;
   --chart-3: #34d399;
   --chart-4: #fbbf24;
-  --chart-5: #f87171;
+  --chart-5: #94a3b8;
   --chart-6: #22d3ee;
   --chart-7: #818cf8;
   --chart-8: #c084fc;
@@ -167,12 +172,12 @@
   /* Sidebar */
   --sidebar: #141414;
   --sidebar-foreground: #ffffff;
-  --sidebar-primary: #60a5fa;
+  --sidebar-primary: #e8202f;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #1a1a1a;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.14);
-  --sidebar-ring: #6b7eff;
+  --sidebar-ring: #f87171;
 }
 
 @layer base {

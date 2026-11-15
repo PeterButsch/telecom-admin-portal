@@ -9,6 +9,8 @@ interface Page<T> {
 
 interface ApiLine {
   status: string
+  brand: string
+  customer_type: string
   plan_name: string
   monthly_price: number
 }
@@ -82,5 +84,50 @@ test.describe("Dashboard aggregates", () => {
       )
     )
     expect(stats.open_cases).toBe(open.reduce((a, b) => a + b, 0))
+  })
+
+  test("overview revenue and ARPU match the active lines by brand and segment", async () => {
+    const overview = await (await api.get("/api/dashboard/overview")).json()
+    const activeLines = await allPages<ApiLine>(api, "/api/lines?status=ACTIVE")
+
+    const totals = (key: (line: ApiLine) => string) => {
+      const result = new Map<string, { lines: number; revenue: number }>()
+      for (const line of activeLines) {
+        const row = result.get(key(line)) ?? { lines: 0, revenue: 0 }
+        row.lines += 1
+        row.revenue += Number(line.monthly_price)
+        result.set(key(line), row)
+      }
+      return result
+    }
+    const check = (
+      row: { active_lines: number; monthly_revenue: number; arpu: number | null },
+      expected = { lines: 0, revenue: 0 }
+    ) => {
+      expect(row.active_lines).toBe(expected.lines)
+      expect(Number(row.monthly_revenue)).toBeCloseTo(expected.revenue, 2)
+      if (expected.lines > 0) {
+        expect(Number(row.arpu)).toBeCloseTo(expected.revenue / expected.lines, 2)
+      } else {
+        expect(row.arpu).toBeNull()
+      }
+    }
+
+    const byBrand = totals((line) => line.brand)
+    expect(overview.brands.map((row: { brand: string }) => row.brand)).toEqual([
+      "SINGTEL",
+      "GOMO",
+      "HI_CARD",
+    ])
+    for (const row of overview.brands) check(row, byBrand.get(row.brand))
+
+    const byType = totals((line) => line.customer_type)
+    const segmentType: Record<string, string> = { CONSUMER: "INDIVIDUAL", ENTERPRISE: "BUSINESS" }
+    for (const row of overview.segments) check(row, byType.get(segmentType[row.segment] ?? ""))
+
+    expect(overview.kpis.active_lines).toBe(activeLines.length)
+    const stats = await (await api.get("/api/dashboard/stats")).json()
+    expect(Number(overview.kpis.monthly_revenue)).toBeCloseTo(Number(stats.monthly_revenue), 2)
+    expect(overview.kpis.open_cases).toBe(stats.open_cases)
   })
 })

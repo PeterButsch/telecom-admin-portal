@@ -30,7 +30,7 @@ public class HealthController {
         Map<String, String> body = new LinkedHashMap<>();
         body.put("status", databaseUp ? "ok" : "degraded");
         body.put("database", databaseUp ? "up" : "down");
-        body.put("service", "Telecom Demo API");
+        body.put("service", "Singtel Ops Console API");
         body.put("version", "1.0.0");
         HttpStatus status = databaseUp ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(status).body(body);

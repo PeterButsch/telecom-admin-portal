@@ -37,8 +37,7 @@ class AuthApiTest extends IntegrationTestSupport {
     @Test
     void signInStartsASessionWithTheRolePermissions() throws Exception {
         login("CARE_AGENT", STAFF_PASSWORD).andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("care_agent"))
-                .andExpect(jsonPath("$.role").value("CARE_AGENT"))
+                .andExpect(jsonPath("$.username").value("care_agent")).andExpect(jsonPath("$.role").value("CARE_AGENT"))
                 .andExpect(jsonPath("$.role_label").value("Care Agent"))
                 .andExpect(jsonPath("$.permissions", hasItem("CUSTOMER_WRITE")))
                 .andExpect(jsonPath("$.permissions", not(hasItem("AUDIT_READ"))))
@@ -57,9 +56,9 @@ class AuthApiTest extends IntegrationTestSupport {
     @Test
     void signInReplacesAnExistingSession() throws Exception {
         MockHttpSession before = new MockHttpSession();
-        MvcResult result = anonymousMvc.perform(post("/api/auth/login").session(before).with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
+        MvcResult result = anonymousMvc
+                .perform(post("/api/auth/login").session(before).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
                 .andExpect(status().isOk()).andReturn();
         assertTrue(before.isInvalid());
         assertNotNull(result.getRequest().getSession(false));
@@ -105,16 +104,16 @@ class AuthApiTest extends IntegrationTestSupport {
     @Test
     void signOutEndsTheSession() throws Exception {
         MockHttpSession session = signIn(StaffRole.CARE_AGENT);
-        anonymousMvc.perform(post("/api/auth/logout").session(session).with(csrf()))
-                .andExpect(status().isNoContent());
+        anonymousMvc.perform(post("/api/auth/logout").session(session).with(csrf())).andExpect(status().isNoContent());
         assertTrue(session.isInvalid());
         assertEquals("LOGOUT", auditEvents().getLast().get("action"));
     }
 
     @Test
     void stateChangingRequestsNeedTheCsrfToken() throws Exception {
-        anonymousMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
+        anonymousMvc
+                .perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.title").value("Invalid CSRF token"));
         MockHttpSession session = signIn(StaffRole.ADMIN);
         anonymousMvc.perform(post("/api/auth/logout").session(session)).andExpect(status().isForbidden());
@@ -123,17 +122,18 @@ class AuthApiTest extends IntegrationTestSupport {
     @Test
     void theCsrfCookieTokenIsAcceptedAsAHeader() throws Exception {
         MvcResult csrf = anonymousMvc.perform(get("/api/auth/csrf")).andExpect(status().isOk())
-                .andExpect(cookie().exists("XSRF-TOKEN")).andExpect(cookie().httpOnly("XSRF-TOKEN", false))
-                .andReturn();
+                .andExpect(cookie().exists("XSRF-TOKEN")).andExpect(cookie().httpOnly("XSRF-TOKEN", false)).andReturn();
         Cookie token = csrf.getResponse().getCookie("XSRF-TOKEN");
         assertNotNull(token);
-        anonymousMvc.perform(post("/api/auth/login").cookie(token).header("X-XSRF-TOKEN", token.getValue())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
+        anonymousMvc
+                .perform(post("/api/auth/login").cookie(token).header("X-XSRF-TOKEN", token.getValue())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
                 .andExpect(status().isOk());
-        anonymousMvc.perform(post("/api/auth/login").cookie(token).header("X-XSRF-TOKEN", "forged")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
+        anonymousMvc
+                .perform(post("/api/auth/login").cookie(token).header("X-XSRF-TOKEN", "forged")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"admin\",\"password\":\"" + STAFF_PASSWORD + "\"}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -141,13 +141,16 @@ class AuthApiTest extends IntegrationTestSupport {
     void staffCanChangeTheirOwnPassword() throws Exception {
         MockHttpSession session = signIn(StaffRole.CARE_AGENT);
         String newPassword = "Brand-New-Pass-77";
-        anonymousMvc.perform(post("/api/auth/password").session(session).with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currentPassword\":\"nope\",\"newPassword\":\"" + newPassword + "\"}"))
-                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.currentPassword").value("is incorrect"));
-        anonymousMvc.perform(post("/api/auth/password").session(session).with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currentPassword\":\"" + STAFF_PASSWORD + "\",\"newPassword\":\"short1\"}"))
+        anonymousMvc
+                .perform(
+                        post("/api/auth/password").session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"currentPassword\":\"nope\",\"newPassword\":\"" + newPassword + "\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.currentPassword").value("is incorrect"));
+        anonymousMvc
+                .perform(
+                        post("/api/auth/password").session(session).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"currentPassword\":\"" + STAFF_PASSWORD + "\",\"newPassword\":\"short1\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors.newPassword").exists());
         anonymousMvc.perform(post("/api/auth/password").session(session).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -167,8 +170,8 @@ class AuthApiTest extends IntegrationTestSupport {
     }
 
     private int failedLogins(String username) {
-        Integer count = jdbc.queryForObject("SELECT failed_logins FROM staff_users WHERE username = ?",
-                Integer.class, username);
+        Integer count = jdbc.queryForObject("SELECT failed_logins FROM staff_users WHERE username = ?", Integer.class,
+                username);
         return count == null ? -1 : count;
     }
 }

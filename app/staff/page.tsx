@@ -23,9 +23,7 @@ import { STAFF_ROLES, type StaffRole } from "@/lib/permissions"
 
 function matches(user: StaffUser, query: string) {
   const text = query.toLowerCase()
-  return [user.display_name, user.username, user.email].some((v) =>
-    v.toLowerCase().includes(text)
-  )
+  return [user.display_name, user.username, user.email].some((v) => v.toLowerCase().includes(text))
 }
 
 export default function StaffPage() {

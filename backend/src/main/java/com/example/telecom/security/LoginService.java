@@ -39,9 +39,8 @@ public class LoginService {
     private final Duration lockout;
     private final String unknownUserHash;
 
-    public LoginService(StaffUserRepository users, PasswordEncoder encoder,
-            SecurityContextRepository contextRepository, AuditService audit,
-            @Value("${app.security.max-failed-logins:5}") int maxFailedLogins,
+    public LoginService(StaffUserRepository users, PasswordEncoder encoder, SecurityContextRepository contextRepository,
+            AuditService audit, @Value("${app.security.max-failed-logins:5}") int maxFailedLogins,
             @Value("${app.security.lockout-minutes:15}") long lockoutMinutes) {
         this.users = users;
         this.encoder = encoder;
@@ -52,8 +51,7 @@ public class LoginService {
         this.unknownUserHash = encoder.encode("unknown-user-placeholder-1");
     }
 
-    public StaffUser login(String username, String password, HttpServletRequest request,
-            HttpServletResponse response) {
+    public StaffUser login(String username, String password, HttpServletRequest request, HttpServletResponse response) {
         String name = username.trim();
         Instant now = Times.now();
         StaffUser user = users.findByUsernameIgnoreCase(name).orElse(null);
@@ -80,7 +78,10 @@ public class LoginService {
         return saved;
     }
 
-    /** Always runs one hash check, also for unknown users, so timing reveals nothing. */
+    /**
+     * Always runs one hash check, also for unknown users, so timing reveals
+     * nothing.
+     */
     private boolean passwordMatches(StaffUser user, String password) {
         String hash = user != null ? user.getPasswordHash() : unknownUserHash;
         boolean matches = PasswordPolicy.fitsHash(password) && encoder.matches(password, hash);
@@ -97,8 +98,8 @@ public class LoginService {
     }
 
     /**
-     * Stores the account in the session. A fresh sign-in also replaces the
-     * session, so a session ID that existed before sign-in cannot be reused.
+     * Stores the account in the session. A fresh sign-in also replaces the session,
+     * so a session ID that existed before sign-in cannot be reused.
      */
     public void startSession(StaffUser user, HttpServletRequest request, HttpServletResponse response,
             boolean newSession) {

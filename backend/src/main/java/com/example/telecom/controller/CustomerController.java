@@ -92,8 +92,8 @@ public class CustomerController {
     }
 
     /**
-     * Returns one customer including date of birth. Each view is audited because
-     * it shows more personal data than the list.
+     * Returns one customer including date of birth. Each view is audited because it
+     * shows more personal data than the list.
      */
     @GetMapping("/{id}")
     @Transactional

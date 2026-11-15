@@ -15,8 +15,8 @@ import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Checks the signed-in account on every request, so that deactivating a user
- * or resetting their password ends their sessions at once, and a role change
+ * Checks the signed-in account on every request, so that deactivating a user or
+ * resetting their password ends their sessions at once, and a role change
  * applies to their next request.
  */
 final class SessionRevalidationFilter extends OncePerRequestFilter {
@@ -36,7 +36,8 @@ final class SessionRevalidationFilter extends OncePerRequestFilter {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof StaffPrincipal principal) {
             StaffUser user = users.findById(principal.id()).orElse(null);
-            if (user == null || !user.isActive() || !principal.passwordChangedAt().equals(user.getPasswordChangedAt())) {
+            if (user == null || !user.isActive()
+                    || !principal.passwordChangedAt().equals(user.getPasswordChangedAt())) {
                 endSession(request);
             } else if (!principal.matches(user)) {
                 SecurityContext refreshed = SecurityContextHolder.createEmptyContext();

@@ -1,16 +1,18 @@
-# Telecom Demo Admin Portal
+# Singtel Ops Console
 
 An operations console for a Singapore mobile operator (Singtel, GOMO and hi!Card brands), built
 with Next.js and Spring Boot.
 
 > **Demo use only:** This project uses generated sample data and publishes the demo staff
 > password on its sign-in page. Do not use real customer data or expose the application to the
-> public internet.
+> public internet. Singtel, GOMO and hi!Card names are used for demonstration only; this project
+> is not affiliated with or endorsed by Singtel.
 
 ## Features
 
-- **Dashboard** - KPI cards and charts: active customers and lines, monthly recurring revenue,
-  open cases, devices in use
+- **Dashboard** - Monthly recurring revenue and ARPU by brand, consumer against enterprise,
+  monthly activations, terminations and churn, number porting by operator, and open cases
+  against their SLA
 - **Customers** - Consumer (NRIC, FIN or passport) and business (UEN) customers with search by
   name, customer number, email, UEN or mobile number. ID numbers are only ever shown masked
   (for example `*****567D`) and cannot be searched.
@@ -90,14 +92,14 @@ With demo data enabled the backend creates one staff account per role. They all 
 password `Demo-Pass-2026` (set `APP_DEMO_PASSWORD` to change it), and the sign-in page lists
 them so you can sign in with one click.
 
-| Username   | Name         | Role                       | Can                                                          |
-| ---------- | ------------ | -------------------------- | ------------------------------------------------------------ |
-| `admin`    | Grace Lim    | Administrator              | Everything, including staff accounts                         |
-| `agent`    | Priya Nair   | Care Agent                 | View and edit customers, cases and devices; no deleting      |
-| `teamlead` | Marcus Tan   | Care Team Lead             | As Care Agent, plus delete customers and read the audit log  |
-| `fraud`    | Siti Rahman  | Fraud & Compliance Analyst | Read customers and lines, work cases, read the audit log     |
-| `netops`   | Daniel Ong   | Network Operations         | Read lines, usage, devices and cases; no customer records    |
-| `product`  | Rachel Wong  | Product Manager            | Manage the plan catalogue and see the dashboard; no customers |
+| Username   | Name        | Role                       | Can                                                           |
+| ---------- | ----------- | -------------------------- | ------------------------------------------------------------- |
+| `admin`    | Grace Lim   | Administrator              | Everything, including staff accounts                          |
+| `agent`    | Priya Nair  | Care Agent                 | View and edit customers, cases and devices; no deleting       |
+| `teamlead` | Marcus Tan  | Care Team Lead             | As Care Agent, plus delete customers and read the audit log   |
+| `fraud`    | Siti Rahman | Fraud & Compliance Analyst | Read customers and lines, work cases, read the audit log      |
+| `netops`   | Daniel Ong  | Network Operations         | Read lines, usage, devices and cases; no customer records     |
+| `product`  | Rachel Wong | Product Manager            | Manage the plan catalogue and see the dashboard; no customers |
 
 Sessions end after 30 minutes without activity. Five wrong passwords in a row lock an account
 for 15 minutes; an administrator can unlock it sooner on the Staff Accounts page. Passwords
@@ -143,7 +145,7 @@ pnpm lint
 
 | Page          | URL          | Description                       |
 | ------------- | ------------ | --------------------------------- |
-| Dashboard     | `/dashboard` | KPIs and charts                   |
+| Dashboard     | `/dashboard` | Revenue, churn, porting and SLAs  |
 | Customers     | `/customers` | Consumer and business customers   |
 | Mobile Lines  | `/lines`     | Lines, plans and contract details |
 | Plans         | `/plans`     | Plan catalogue for all brands     |
@@ -156,22 +158,23 @@ pnpm lint
 
 ## API Endpoints
 
-| Endpoint           | Methods                  | Description                                      |
-| ------------------ | ------------------------ | ------------------------------------------------ |
-| `/api/health`      | GET                      | Health check (returns 503 if the database fails) |
-| `/api/customers`   | GET, POST, PATCH, DELETE | Customers (paged, searchable)                    |
-| `/api/accounts`    | GET, POST                | Billing accounts of a customer                   |
-| `/api/lines`       | GET                      | Mobile lines (paged, searchable)                 |
-| `/api/plans`       | GET, POST, PUT, DELETE   | Plan catalogue                                   |
-| `/api/add-ons`     | GET                      | Add-on catalogue                                 |
-| `/api/promotions`  | GET                      | Promotions                                       |
-| `/api/devices`     | GET, POST, PATCH, DELETE | Device inventory                                 |
-| `/api/usage`       | GET                      | Usage records (paged)                            |
-| `/api/cases`       | GET, POST, PATCH         | Support cases (paged)                            |
-| `/api/dashboard/*` | GET                      | Dashboard statistics                             |
-| `/api/auth/*`      | GET, POST                | Sign in and out, current user, own password      |
-| `/api/staff-users` | GET, POST, PATCH         | Staff accounts, unlock and password reset        |
-| `/api/audit-events`| GET                      | Audit trail (paged, filterable)                  |
+| Endpoint                  | Methods                  | Description                                      |
+| ------------------------- | ------------------------ | ------------------------------------------------ |
+| `/api/health`             | GET                      | Health check (returns 503 if the database fails) |
+| `/api/customers`          | GET, POST, PATCH, DELETE | Customers (paged, searchable)                    |
+| `/api/accounts`           | GET, POST                | Billing accounts of a customer                   |
+| `/api/lines`              | GET                      | Mobile lines (paged, searchable)                 |
+| `/api/plans`              | GET, POST, PUT, DELETE   | Plan catalogue                                   |
+| `/api/add-ons`            | GET                      | Add-on catalogue                                 |
+| `/api/promotions`         | GET                      | Promotions                                       |
+| `/api/devices`            | GET, POST, PATCH, DELETE | Device inventory                                 |
+| `/api/usage`              | GET                      | Usage records (paged)                            |
+| `/api/cases`              | GET, POST, PATCH         | Support cases (paged)                            |
+| `/api/dashboard/overview` | GET                      | Dashboard figures (revenue, churn, porting, SLA) |
+| `/api/dashboard/*`        | GET                      | Per-chart statistics (plans, devices, cases)     |
+| `/api/auth/*`             | GET, POST                | Sign in and out, current user, own password      |
+| `/api/staff-users`        | GET, POST, PATCH         | Staff accounts, unlock and password reset        |
+| `/api/audit-events`       | GET                      | Audit trail (paged, filterable)                  |
 
 Every endpoint except `/api/health` and sign-in needs a signed-in session (the `TELCO_SESSION`
 cookie) and a role that allows it; otherwise it returns 401 or 403. Requests that change data
@@ -186,15 +189,15 @@ the invalid fields under `errors`.
 
 ### Configuration
 
-| Setting                 | Default   | Purpose                                         |
-| ----------------------- | --------- | ----------------------------------------------- |
-| `APP_DB_PATH`           | `app.db`  | SQLite database file used by the backend        |
-| `APP_DEMO_DATA`         | `true`    | Seed an empty database with generated demo data |
-| `APP_DEMO_PASSWORD`     | `Demo-Pass-2026` | Password of the demo staff accounts      |
-| `APP_ADMIN_PASSWORD`    | (none)    | Creates an `admin` account when there is no staff and no demo data |
-| `APP_SESSION_TIMEOUT`   | `30m`     | Sign staff out after this much inactivity       |
-| `APP_SECURE_COOKIES`    | `false`   | Mark cookies Secure; set to `true` behind HTTPS |
-| `app.max-request-bytes` | `1048576` | Request bodies above this size get a 413        |
+| Setting                 | Default          | Purpose                                                            |
+| ----------------------- | ---------------- | ------------------------------------------------------------------ |
+| `APP_DB_PATH`           | `app.db`         | SQLite database file used by the backend                           |
+| `APP_DEMO_DATA`         | `true`           | Seed an empty database with generated demo data                    |
+| `APP_DEMO_PASSWORD`     | `Demo-Pass-2026` | Password of the demo staff accounts                                |
+| `APP_ADMIN_PASSWORD`    | (none)           | Creates an `admin` account when there is no staff and no demo data |
+| `APP_SESSION_TIMEOUT`   | `30m`            | Sign staff out after this much inactivity                          |
+| `APP_SECURE_COOKIES`    | `false`          | Mark cookies Secure; set to `true` behind HTTPS                    |
+| `app.max-request-bytes` | `1048576`        | Request bodies above this size get a 413                           |
 
 ## API Documentation
 
@@ -205,7 +208,7 @@ Start the backend, sign in to the portal, then open the Swagger UI at
 
 ```
 ├── app/                    # Next.js pages
-│   ├── dashboard/          # Dashboard with KPIs/charts
+│   ├── dashboard/          # Operations dashboard
 │   ├── customers/          # Customers
 │   ├── lines/              # Mobile lines
 │   ├── plans/              # Plan catalogue

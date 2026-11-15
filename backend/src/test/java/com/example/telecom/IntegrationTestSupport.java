@@ -57,7 +57,7 @@ public abstract class IntegrationTestSupport {
     protected static final String FIXTURE_TIME = "2026-02-01 09:00:00.000";
     protected static final String ADA_NRIC = "S1234567D";
     protected static final String STAFF_PASSWORD = "Test-Password-2026";
-    // A low BCrypt cost keeps the fixture fast; the application verifies hashes of any cost.
+    // A low BCrypt cost keeps the fixture fast; the app accepts any cost.
     private static final String STAFF_PASSWORD_HASH = new BCryptPasswordEncoder(4).encode(STAFF_PASSWORD);
     private static final List<String> TABLES = List.of("usage_records", "support_cases", "devices", "line_add_ons",
             "mobile_lines", "accounts", "customers", "promotions", "add_ons", "plans", "staff_users");
@@ -84,17 +84,16 @@ public abstract class IntegrationTestSupport {
             jdbc.update(staff, username, role.label(), username + "@staff.test", role.name(), STAFF_PASSWORD_HASH,
                     FIXTURE_TIME, FIXTURE_TIME);
         }
-        // csrf() in a test swaps the filter's token repository for a session-based test double; put the real
-        // cookie repository back so every test starts with the production CSRF setup.
+        // csrf() in a test swaps in a session-based token repository. Put the
+        // real cookie repository back so every test uses the production setup.
         WebTestUtils.setCsrfTokenRepository(new MockHttpServletRequest(context.getServletContext()),
                 context.getBean(CookieCsrfTokenRepository.class));
         Long maxAudit = jdbc.queryForObject("SELECT COALESCE(MAX(id), 0) FROM audit_events", Long.class);
         auditBaseline = maxAudit == null ? 0 : maxAudit;
         anonymousMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(context.getBean(RequestSizeLimitFilter.class)).apply(springSecurity()).build();
-        mockMvc = MockMvcBuilders.webAppContextSetup(context)
-                .addFilters(context.getBean(RequestSizeLimitFilter.class)).apply(springSecurity())
-                .defaultRequest(get("/").with(as(StaffRole.ADMIN)).with(csrf())).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context).addFilters(context.getBean(RequestSizeLimitFilter.class))
+                .apply(springSecurity()).defaultRequest(get("/").with(as(StaffRole.ADMIN)).with(csrf())).build();
         String plan = "INSERT INTO plans (id, code, name, brand, category, segment, monthly_price, data_limit_gb,"
                 + " contract_months, network, is_active, created_at) VALUES (?, ?, ?, ?, ?, 'CONSUMER', ?, 100, ?,"
                 + " '5G', 1, ?)";

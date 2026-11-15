@@ -42,16 +42,17 @@ public class AuditEventController {
             @RequestParam(defaultValue = "50") int size, @RequestParam(required = false) String q,
             @RequestParam(required = false) AuditAction action,
             @RequestParam(required = false) AuditAction.Entity entityType,
-            @RequestParam(required = false) String entityId,
-            @RequestParam(required = false) AuditEvent.Outcome outcome,
+            @RequestParam(required = false) String entityId, @RequestParam(required = false) AuditEvent.Outcome outcome,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo) {
         if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
             throw new BadRequestException("dateFrom must be on or before dateTo.");
         }
-        return PageResponse.of(repository.findFiltered(name(action), name(entityType),
-                CustomerController.trimToNull(entityId), outcome, SearchTerms.of(q).text(), startOf(dateFrom),
-                startOf(dateTo != null ? dateTo.plusDays(1) : null), Paging.of(page, size)), AuditEventResponse::from);
+        return PageResponse.of(
+                repository.findFiltered(name(action), name(entityType), CustomerController.trimToNull(entityId),
+                        outcome, SearchTerms.of(q).text(), startOf(dateFrom),
+                        startOf(dateTo != null ? dateTo.plusDays(1) : null), Paging.of(page, size)),
+                AuditEventResponse::from);
     }
 
     private static String name(Enum<?> value) {
@@ -80,9 +81,9 @@ public class AuditEventController {
             String actor_role, String actor_role_label, String action, String entity_type, String entity_id,
             String summary, String outcome) {
         static AuditEventResponse from(AuditEvent e) {
-            return new AuditEventResponse(e.getId(), Times.iso(e.getOccurredAt()), e.getActorId(),
-                    e.getActorUsername(), e.getActorRole(), roleLabel(e.getActorRole()), e.getAction(),
-                    e.getEntityType(), e.getEntityId(), e.getSummary(), e.getOutcome().name());
+            return new AuditEventResponse(e.getId(), Times.iso(e.getOccurredAt()), e.getActorId(), e.getActorUsername(),
+                    e.getActorRole(), roleLabel(e.getActorRole()), e.getAction(), e.getEntityType(), e.getEntityId(),
+                    e.getSummary(), e.getOutcome().name());
         }
 
         private static String roleLabel(String role) {

@@ -1,5 +1,8 @@
 package com.example.telecom.controller;
 
+import com.example.telecom.api.Times;
+import com.example.telecom.dashboard.DashboardOverviewService;
+import com.example.telecom.dashboard.DashboardOverviewService.Overview;
 import com.example.telecom.model.Customer;
 import com.example.telecom.model.Device;
 import com.example.telecom.model.MobileLine;
@@ -31,13 +34,26 @@ public class DashboardController {
     private final MobileLineRepository lineRepository;
     private final DeviceRepository deviceRepository;
     private final SupportCaseRepository caseRepository;
+    private final DashboardOverviewService overviewService;
 
     public DashboardController(CustomerRepository customerRepository, MobileLineRepository lineRepository,
-            DeviceRepository deviceRepository, SupportCaseRepository caseRepository) {
+            DeviceRepository deviceRepository, SupportCaseRepository caseRepository,
+            DashboardOverviewService overviewService) {
         this.customerRepository = customerRepository;
         this.lineRepository = lineRepository;
         this.deviceRepository = deviceRepository;
         this.caseRepository = caseRepository;
+        this.overviewService = overviewService;
+    }
+
+    /**
+     * Revenue and ARPU by brand, consumer versus enterprise, monthly line movement,
+     * churn, porting and case SLAs. See {@link DashboardOverviewService} for the
+     * definitions.
+     */
+    @GetMapping("/overview")
+    public Overview getOverview() {
+        return overviewService.overview(Times.now());
     }
 
     @GetMapping("/stats")

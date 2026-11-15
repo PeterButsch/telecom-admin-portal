@@ -50,8 +50,7 @@ class AuthorizationTest extends IntegrationTestSupport {
 
     @ParameterizedTest(name = "{0} {1} {2} allowed={3}")
     @MethodSource("accessRules")
-    void eachRoleOnlyReachesItsEndpoints(StaffRole role, String method, String url, boolean allowed)
-            throws Exception {
+    void eachRoleOnlyReachesItsEndpoints(StaffRole role, String method, String url, boolean allowed) throws Exception {
         int status = mockMvc.perform(request(method, url).with(as(role))).andReturn().getResponse().getStatus();
         if (allowed) {
             assertTrue(status != 401 && status != 403, method + " " + url + " returned " + status);
@@ -85,8 +84,7 @@ class AuthorizationTest extends IntegrationTestSupport {
     @Test
     void deactivationEndsExistingSessions() throws Exception {
         MockHttpSession session = signIn(StaffRole.CARE_AGENT);
-        patchJson("/api/staff-users/" + staffId(StaffRole.CARE_AGENT), "{\"active\":false}")
-                .andExpect(status().isOk());
+        patchJson("/api/staff-users/" + staffId(StaffRole.CARE_AGENT), "{\"active\":false}").andExpect(status().isOk());
         anonymousMvc.perform(get("/api/auth/me").session(session)).andExpect(status().isUnauthorized());
     }
 

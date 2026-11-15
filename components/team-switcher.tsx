@@ -1,37 +1,22 @@
 "use client"
 
-import * as React from "react"
 import Link from "next/link"
 
+import { Logo, Wordmark } from "@/components/logo"
 import { SidebarMenu, SidebarMenuItem } from "@/components/ui/sidebar"
 
-export function TeamSwitcher({
-  teams,
-}: {
-  teams: {
-    name: string
-    logo: React.ElementType
-    plan: string
-  }[]
-}) {
-  const team = teams[0]
-
-  if (!team) {
-    return null
-  }
-
+/** The Singtel mark and wordmark at the top of the sidebar, linking to the dashboard. */
+export function TeamSwitcher({ product }: { product: string }) {
   return (
     <SidebarMenu>
       <SidebarMenuItem>
         <Link
           href="/dashboard"
+          aria-label={`Singtel ${product}, go to the dashboard`}
           className="hover:bg-sidebar-accent flex items-center gap-3 rounded-md px-2 py-3 transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
         >
-          <team.logo className="size-8 shrink-0" />
-          <div className="grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-headline-3 text-primary">{team.name}</span>
-            <span className="text-caption text-muted-foreground">{team.plan}</span>
-          </div>
+          <Logo className="size-8" />
+          <Wordmark product={product} className="flex-1 group-data-[collapsible=icon]:hidden" />
         </Link>
       </SidebarMenuItem>
     </SidebarMenu>

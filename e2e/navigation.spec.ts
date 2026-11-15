@@ -14,7 +14,7 @@ const listPages = [
 test.describe("Navigation", () => {
   test("should navigate to all main pages", async ({ page }) => {
     await page.goto("/")
-    await expect(page).toHaveTitle(/Telecom Demo/)
+    await expect(page).toHaveTitle(/Singtel Ops Console/)
 
     await page.goto("/dashboard")
     await expect(page.getByLabel("breadcrumb")).toBeVisible()

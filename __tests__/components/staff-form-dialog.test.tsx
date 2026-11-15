@@ -80,13 +80,11 @@ describe("StaffFormDialog", () => {
   })
 
   it("shows the password policy message next to the password", async () => {
-    const onSubmit = vi
-      .fn()
-      .mockRejectedValue(
-        new ApiError("password must be at least 12 characters", 400, {
-          password: "must be at least 12 characters",
-        })
-      )
+    const onSubmit = vi.fn().mockRejectedValue(
+      new ApiError("password must be at least 12 characters", 400, {
+        password: "must be at least 12 characters",
+      })
+    )
     renderForm({ onSubmit })
 
     fireEvent.change(screen.getByLabelText("Username"), { target: { value: "jtan" } })
