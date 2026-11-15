@@ -1,18 +1,24 @@
 # Telecom Demo Admin Portal
 
-A telecom user administration system built with Next.js and Spring Boot.
+An operations console for a Singapore mobile operator (Singtel, GOMO and hi!Card brands), built
+with Next.js and Spring Boot.
 
 > **Demo use only:** This project uses generated sample data and an unauthenticated local API.
 > Do not use real customer data or expose the application to the public internet.
 
 ## Features
 
-- **Dashboard** - KPI cards and charts showing business metrics
-- **Customer Management** - CRUD operations for subscriber accounts
-- **Plan Management** - Service plan catalog (Basic, Standard, Premium, Unlimited, Family)
-- **Device Inventory** - Track devices and SIM cards with assignment status
-- **Usage Records** - View call, data, and SMS usage history
-- **Support Tickets** - Customer service ticket management
+- **Dashboard** - KPI cards and charts: active customers and lines, monthly recurring revenue,
+  open cases, devices in use
+- **Customers** - Consumer (NRIC, FIN or passport) and business (UEN) customers with search by
+  name, customer number, email, UEN or mobile number. ID numbers are only ever shown masked
+  (for example `*****567D`) and cannot be searched.
+- **Mobile Lines** - Every line with its brand, plan, SIM type, status, contract and porting details
+- **Plans** - The Singtel, GOMO and hi!Card catalogue: postpaid, SIM-only, prepaid and data-only
+  plans for consumer and enterprise segments
+- **Devices** - Handset inventory with IMEI and the line each device is assigned to
+- **Usage** - Call, data and SMS records per line, including roaming
+- **Support Cases** - Customer cases with category, channel, priority and SLA tracking
 
 ## Tech Stack
 
@@ -30,7 +36,8 @@ A telecom user administration system built with Next.js and Spring Boot.
 - Spring Boot 4.0
 - Java 21
 - Gradle
-- SQLite (auto-seeded with demo data)
+- SQLite in WAL mode, schema managed by Flyway
+- Generated Singapore demo data on first start
 
 ## Getting Started
 
@@ -43,39 +50,31 @@ A telecom user administration system built with Next.js and Spring Boot.
 ### Setup
 
 ```bash
-pnpm setup    # Install deps + seed database with production-like data
+pnpm setup    # Install dependencies
 ```
 
-Or install without seeding:
+### Demo Data
+
+The database schema is managed by Flyway (`backend/src/main/resources/db/migration`). When the
+backend starts with an empty database it fills it with generated Singapore demo data. A fixed
+random seed gives every fresh database the same customers and lines; dates are relative to the
+day the data was generated.
+
+| Entity        | Count    |
+| ------------- | -------- |
+| Plans         | 15       |
+| Customers     | 605      |
+| Accounts      | 689      |
+| Mobile lines  | 1,774    |
+| Devices       | 1,085    |
+| Usage records | ~166,000 |
+| Support cases | ~520     |
 
 ```bash
-pnpm install
+pnpm reset:db   # Delete the database; the backend re-creates and re-seeds it on its next start
 ```
 
-### Database Seeding
-
-The Python seeder (`scripts/seed-database.py`) generates production-like data:
-
-| Entity          | Count    |
-| --------------- | -------- |
-| Plans           | 8        |
-| Customers       | 500      |
-| Devices         | 600      |
-| Usage Records   | ~220,000 |
-| Support Tickets | 250      |
-
-```bash
-pnpm setup:db   # Run seeder
-pnpm reset:db   # Delete DB + re-seed
-```
-
-Create a Python virtual environment and install the pinned seeder dependency:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r scripts/requirements.txt
-```
+Set `APP_DEMO_DATA=false` to start with an empty database instead.
 
 ### Development
 
@@ -111,26 +110,34 @@ pnpm lint
 
 ## Application Pages
 
-| Page      | URL          | Description           |
-| --------- | ------------ | --------------------- |
-| Dashboard | `/dashboard` | KPIs and charts       |
-| Customers | `/customers` | Subscriber management |
-| Plans     | `/plans`     | Service plan catalog  |
-| Devices   | `/devices`   | Device/SIM inventory  |
-| Usage     | `/usage`     | Usage records         |
-| Tickets   | `/tickets`   | Support tickets       |
+| Page          | URL          | Description                       |
+| ------------- | ------------ | --------------------------------- |
+| Dashboard     | `/dashboard` | KPIs and charts                   |
+| Customers     | `/customers` | Consumer and business customers   |
+| Mobile Lines  | `/lines`     | Lines, plans and contract details |
+| Plans         | `/plans`     | Plan catalogue for all brands     |
+| Devices       | `/devices`   | Handset inventory                 |
+| Usage         | `/usage`     | Call, data and SMS usage          |
+| Support Cases | `/cases`     | Customer cases with SLA tracking  |
 
 ## API Endpoints
 
 | Endpoint           | Methods                  | Description                                      |
 | ------------------ | ------------------------ | ------------------------------------------------ |
 | `/api/health`      | GET                      | Health check (returns 503 if the database fails) |
-| `/api/customers`   | GET, POST, PATCH, DELETE | Customer CRUD                                    |
-| `/api/plans`       | GET, POST, PUT, DELETE   | Plan CRUD                                        |
-| `/api/devices`     | GET, POST, PATCH, DELETE | Device CRUD                                      |
-| `/api/usage`       | GET                      | Usage records                                    |
-| `/api/tickets`     | GET, POST, PATCH, DELETE | Ticket CRUD                                      |
+| `/api/customers`   | GET, POST, PATCH, DELETE | Customers (paged, searchable)                    |
+| `/api/accounts`    | GET, POST                | Billing accounts of a customer                   |
+| `/api/lines`       | GET                      | Mobile lines (paged, searchable)                 |
+| `/api/plans`       | GET, POST, PUT, DELETE   | Plan catalogue                                   |
+| `/api/add-ons`     | GET                      | Add-on catalogue                                 |
+| `/api/promotions`  | GET                      | Promotions                                       |
+| `/api/devices`     | GET, POST, PATCH, DELETE | Device inventory                                 |
+| `/api/usage`       | GET                      | Usage records (paged)                            |
+| `/api/cases`       | GET, POST, PATCH         | Support cases (paged)                            |
 | `/api/dashboard/*` | GET                      | Dashboard statistics                             |
+
+Paged endpoints accept `page` and `size` (at most 100) and return
+`{ content, page, totalPages, totalElements, hasNext }`.
 
 `PATCH` updates only the fields you send. Errors use the RFC 9457 problem format
 (`application/problem+json`) with a readable `detail`, and validation failures list
@@ -138,10 +145,11 @@ the invalid fields under `errors`.
 
 ### Configuration
 
-| Setting                 | Default   | Purpose                                  |
-| ----------------------- | --------- | ---------------------------------------- |
-| `APP_DB_PATH`           | `app.db`  | SQLite database file used by the backend |
-| `app.max-request-bytes` | `1048576` | Request bodies above this size get a 413 |
+| Setting                 | Default   | Purpose                                         |
+| ----------------------- | --------- | ----------------------------------------------- |
+| `APP_DB_PATH`           | `app.db`  | SQLite database file used by the backend        |
+| `APP_DEMO_DATA`         | `true`    | Seed an empty database with generated demo data |
+| `app.max-request-bytes` | `1048576` | Request bodies above this size get a 413        |
 
 ## API Documentation
 
@@ -153,23 +161,26 @@ Start the backend, then open the Swagger UI at
 ```
 ├── app/                    # Next.js pages
 │   ├── dashboard/          # Dashboard with KPIs/charts
-│   ├── customers/          # Customer management
-│   ├── plans/              # Plan management
+│   ├── customers/          # Customers
+│   ├── lines/              # Mobile lines
+│   ├── plans/              # Plan catalogue
 │   ├── devices/            # Device inventory
 │   ├── usage/              # Usage records
-│   └── tickets/            # Support tickets
+│   └── cases/              # Support cases
 ├── backend/                # Spring Boot backend
-│   └── src/main/java/com/example/telecom/
-│       ├── model/          # JPA entities
-│       ├── repository/     # Spring Data repos
-│       └── controller/     # REST controllers
-├── scripts/                # Utility scripts
-│   ├── seed-database.py    # Production-like data seeder
-│   └── requirements.txt    # Python dependencies
+│   └── src/main/
+│       ├── java/com/example/telecom/
+│       │   ├── api/        # Paging, search and time helpers
+│       │   ├── controller/ # REST controllers
+│       │   ├── model/      # JPA entities
+│       │   ├── repository/ # Spring Data repositories
+│       │   └── seed/       # Demo data generator
+│       └── resources/db/migration/  # Flyway schema migrations
 ├── components/             # React components
 │   └── ui/                 # shadcn/ui components
-├── hooks/                  # Custom React hooks
-└── lib/                    # Utilities
+├── e2e/                    # Playwright tests
+├── hooks/                  # Data-loading React hooks
+└── lib/                    # API client, formatting and labels
 ```
 
 ## License

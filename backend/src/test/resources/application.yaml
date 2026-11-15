@@ -13,13 +13,16 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: false
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema.sql
+    properties:
+      hibernate.default_batch_fetch_size: 100
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 app:
   max-request-bytes: 4096
+  demo-data:
+    enabled: false
 
 management:
   endpoints:

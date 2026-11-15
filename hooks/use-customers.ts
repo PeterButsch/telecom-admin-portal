@@ -1,81 +1,136 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { apiFetch, errorMessage } from "@/lib/api"
+import { useCallback } from "react"
+import { apiFetch } from "@/lib/api"
+import { usePagedList } from "@/hooks/use-paged-list"
 
-export type CustomerStatus = "ACTIVE" | "SUSPENDED" | "CANCELLED"
+export const CUSTOMER_TYPES = ["INDIVIDUAL", "BUSINESS"] as const
+export const CUSTOMER_STATUSES = ["ACTIVE", "SUSPENDED", "CLOSED"] as const
+export const ID_TYPES = ["NRIC", "FIN", "PASSPORT"] as const
+
+export type CustomerType = (typeof CUSTOMER_TYPES)[number]
+export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number]
+export type IdType = (typeof ID_TYPES)[number]
 
 export interface Customer {
   id: number
-  first_name: string
-  last_name: string
+  customer_number: string
+  type: CustomerType
+  display_name: string
+  first_name: string | null
+  last_name: string | null
+  company_name: string | null
+  uen: string | null
+  contact_name: string | null
+  id_type: IdType | null
+  /** Only the last characters of an ID number are ever sent by the API, for example "*****567A". */
+  id_number_masked: string | null
+  date_of_birth: string | null
   email: string
   phone: string
-  plan_id: number | null
-  plan_name: string | null
+  address_line: string | null
+  postal_code: string | null
   status: CustomerStatus
-  balance: number
-  activated_at: string | null
+  account_count: number
+  line_count: number
+  active_line_count: number
+  total_balance: number
   created_at: string | null
 }
 
 export interface CustomerCreate {
-  firstName: string
-  lastName: string
+  type: CustomerType
+  firstName?: string
+  lastName?: string
+  companyName?: string
+  uen?: string
+  contactName?: string
+  idType?: IdType
+  idNumber?: string
+  dateOfBirth?: string
   email: string
   phone: string
-  planId: number
-  balance?: number
+  addressLine?: string
+  postalCode?: string
 }
 
-export type CustomerUpdate = Partial<CustomerCreate> & { status?: CustomerStatus }
+/** Partial update. Identity fields (type, ID number, date of birth, UEN) cannot change. */
+export interface CustomerUpdate {
+  firstName?: string
+  lastName?: string
+  companyName?: string
+  contactName?: string
+  email?: string
+  phone?: string
+  addressLine?: string
+  postalCode?: string
+  status?: CustomerStatus
+}
 
-export function useCustomers() {
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export interface CustomerFilters {
+  q?: string | null
+  type?: CustomerType | null
+  status?: CustomerStatus | null
+}
 
-  const fetchCustomers = useCallback(async () => {
-    try {
-      setLoading(true)
-      setCustomers(await apiFetch<Customer[]>("/api/customers"))
-      setError(null)
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+export function customersUrl(filters: CustomerFilters, page: number, size = 50) {
+  const params = new URLSearchParams({ page: page.toString(), size: size.toString() })
+  if (filters.q?.trim()) params.set("q", filters.q.trim())
+  if (filters.type) params.set("type", filters.type)
+  if (filters.status) params.set("status", filters.status)
+  return `/api/customers?${params.toString()}`
+}
 
-  const createCustomer = useCallback(async (customer: CustomerCreate) => {
-    const created = await apiFetch<Customer>("/api/customers", { method: "POST", body: customer })
-    setCustomers((prev) => [...prev, created])
-    return created
-  }, [])
+export function useCustomers({ q, type, status }: CustomerFilters = {}) {
+  const buildUrl = useCallback(
+    (page: number) => customersUrl({ q, type, status }, page),
+    [q, type, status]
+  )
+  const list = usePagedList<Customer>(buildUrl)
+  const { setItems, refresh } = list
 
-  const updateCustomer = useCallback(async (id: number, customer: CustomerUpdate) => {
-    const updated = await apiFetch<Customer>(`/api/customers/${id}`, {
-      method: "PATCH",
-      body: customer,
-    })
-    setCustomers((prev) => prev.map((c) => (c.id === id ? updated : c)))
-    return updated
-  }, [])
+  const createCustomer = useCallback(
+    async (customer: CustomerCreate) => {
+      const created = await apiFetch<Customer>("/api/customers", {
+        method: "POST",
+        body: customer,
+      })
+      void refresh()
+      return created
+    },
+    [refresh]
+  )
 
-  const deleteCustomer = useCallback(async (id: number) => {
-    await apiFetch<void>(`/api/customers/${id}`, { method: "DELETE" })
-    setCustomers((prev) => prev.filter((c) => c.id !== id))
-  }, [])
+  const updateCustomer = useCallback(
+    async (id: number, customer: CustomerUpdate) => {
+      const updated = await apiFetch<Customer>(`/api/customers/${id}`, {
+        method: "PATCH",
+        body: customer,
+      })
+      setItems((prev) => prev.map((c) => (c.id === id ? updated : c)))
+      return updated
+    },
+    [setItems]
+  )
 
-  useEffect(() => {
-    void fetchCustomers()
-  }, [fetchCustomers])
+  const deleteCustomer = useCallback(
+    async (id: number) => {
+      await apiFetch<void>(`/api/customers/${id}`, { method: "DELETE" })
+      setItems((prev) => prev.filter((c) => c.id !== id))
+    },
+    [setItems]
+  )
 
   return {
-    customers,
-    loading,
-    error,
-    fetchCustomers,
+    customers: list.items,
+    loading: list.loading,
+    loadingMore: list.loadingMore,
+    error: list.error,
+    loadMoreError: list.loadMoreError,
+    hasNext: list.hasNext,
+    totalElements: list.totalElements,
+    loadMore: list.loadMore,
+    refresh,
     createCustomer,
     updateCustomer,
     deleteCustomer,

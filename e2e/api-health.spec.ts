@@ -8,26 +8,23 @@ test.describe("API Health", () => {
     expect(response.ok()).toBeTruthy()
   })
 
-  test("customers API should respond", async ({ request }) => {
-    const response = await request.get(`${backendUrl}/api/customers`)
-    expect(response.ok()).toBeTruthy()
-    const data = await response.json()
-    expect(Array.isArray(data)).toBeTruthy()
-  })
+  for (const path of ["/api/customers", "/api/lines", "/api/usage", "/api/cases"]) {
+    test(`${path} should return a page`, async ({ request }) => {
+      const response = await request.get(`${backendUrl}${path}?size=5`)
+      expect(response.ok()).toBeTruthy()
+      const data = await response.json()
+      expect(Array.isArray(data.content)).toBeTruthy()
+      expect(data.content.length).toBeGreaterThan(0)
+    })
+  }
 
-  test("plans API should respond", async ({ request }) => {
-    const response = await request.get(`${backendUrl}/api/plans`)
-    expect(response.ok()).toBeTruthy()
-    const data = await response.json()
-    expect(Array.isArray(data)).toBeTruthy()
-  })
-
-  test("devices API should respond", async ({ request }) => {
-    const response = await request.get(`${backendUrl}/api/devices`)
-    expect(response.ok()).toBeTruthy()
-    const data = await response.json()
-    expect(Array.isArray(data)).toBeTruthy()
-  })
+  for (const path of ["/api/plans", "/api/devices"]) {
+    test(`${path} should return a list`, async ({ request }) => {
+      const response = await request.get(`${backendUrl}${path}`)
+      expect(response.ok()).toBeTruthy()
+      expect(Array.isArray(await response.json())).toBeTruthy()
+    })
+  }
 
   test("dashboard stats API should respond", async ({ request }) => {
     const response = await request.get(`${backendUrl}/api/dashboard/stats`)

@@ -1,15 +1,32 @@
 import { renderHook, waitFor, act } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { usePlans, type Plan } from "@/hooks/use-plans"
+import { usePlans, type Plan, type PlanRequest } from "@/hooks/use-plans"
 
 const basic: Plan = {
   id: 1,
-  name: "Basic",
-  monthly_price: 20,
-  data_limit_gb: 10,
-  minutes_limit: 500,
-  sms_limit: 500,
+  code: "XO-5G-100",
+  name: "XO Plus 100GB",
+  brand: "SINGTEL",
+  category: "POSTPAID",
+  segment: "CONSUMER",
+  monthly_price: 75,
+  data_limit_gb: 100,
+  minutes_limit: 1000,
+  sms_limit: 1000,
+  contract_months: 24,
+  network: "5G",
   is_active: true,
+  line_count: 10,
+  created_at: null,
+}
+
+const request: PlanRequest = {
+  code: "GOMO-20",
+  name: "GOMO 20GB",
+  brand: "GOMO",
+  category: "SIM_ONLY",
+  segment: "CONSUMER",
+  monthlyPrice: 10,
 }
 
 function jsonResponse(body: unknown, status = 200) {
@@ -66,31 +83,32 @@ describe("usePlans", () => {
     const { result } = renderHook(() => usePlans())
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    const created = { ...basic, id: 2, name: "Student" }
+    const created = { ...basic, id: 2, code: "GOMO-20", name: "GOMO 20GB" }
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(created, 201))
 
     await act(async () => {
-      await result.current.createPlan({ name: "Student", monthlyPrice: 15.5 })
+      await result.current.createPlan(request)
     })
 
     const [url, init] = vi.mocked(fetch).mock.calls[1]
     expect(url).toBe("/api/plans")
     expect(init?.method).toBe("POST")
-    expect(JSON.parse(init?.body as string)).toEqual({ name: "Student", monthlyPrice: 15.5 })
-    expect(result.current.plans.map((p) => p.name)).toEqual(["Basic", "Student"])
+    expect(JSON.parse(init?.body as string)).toEqual(request)
+    expect(result.current.plans.map((p) => p.code)).toEqual(["XO-5G-100", "GOMO-20"])
   })
 
   it("replaces the updated plan in local state", async () => {
     const { result } = renderHook(() => usePlans())
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    const updated = { ...basic, name: "Basic Plus" }
+    const updated = { ...basic, name: "XO Plus 120GB" }
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(updated))
 
     await act(async () => {
-      await result.current.updatePlan(1, { name: "Basic Plus", monthlyPrice: 25 })
+      await result.current.updatePlan(1, { ...request, code: basic.code, name: updated.name })
     })
 
+    expect(vi.mocked(fetch).mock.calls[1][1]?.method).toBe("PUT")
     expect(result.current.plans).toEqual([updated])
   })
 
@@ -111,9 +129,11 @@ describe("usePlans", () => {
     const { result } = renderHook(() => usePlans())
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    vi.mocked(fetch).mockResolvedValueOnce(problemResponse(409, "Plan 1 is used by 2 customer(s)."))
+    vi.mocked(fetch).mockResolvedValueOnce(
+      problemResponse(409, "Plan 1 is used by 2 line(s). Mark it inactive instead of deleting it.")
+    )
 
-    await expect(result.current.deletePlan(1)).rejects.toThrow("Plan 1 is used by 2 customer(s).")
+    await expect(result.current.deletePlan(1)).rejects.toThrow("Plan 1 is used by 2 line(s).")
     expect(result.current.plans).toEqual([basic])
   })
 })

@@ -8,56 +8,43 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { StatusBadge } from "@/components/status-badge"
+import { formatDateTime, formatMoney, formatMsisdn, formatUsage } from "@/lib/format"
 import type { UsageRecord } from "@/hooks/use-usage"
 
-interface UsageTableProps {
-  records: UsageRecord[]
-}
-
-const typeColors: Record<string, string> = {
-  CALL: "bg-blue-100 text-blue-800",
-  DATA: "bg-purple-100 text-purple-800",
-  SMS: "bg-green-100 text-green-800",
-}
-
-const typeUnits: Record<string, string> = {
-  CALL: "min",
-  DATA: "MB",
-  SMS: "",
-}
-
-export function UsageTable({ records }: UsageTableProps) {
+export function UsageTable({ records }: { records: UsageRecord[] }) {
   return (
     <Table>
       <TableHeader className="bg-background sticky top-0 z-10">
         <TableRow>
-          <TableHead className="w-[60px]">ID</TableHead>
+          <TableHead>Recorded</TableHead>
+          <TableHead>Mobile number</TableHead>
           <TableHead>Customer</TableHead>
           <TableHead>Type</TableHead>
           <TableHead className="text-right">Quantity</TableHead>
-          <TableHead className="text-right">Cost</TableHead>
-          <TableHead>Date</TableHead>
+          <TableHead className="text-right">Charge</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {records.map((record) => (
           <TableRow key={record.id}>
-            <TableCell className="font-medium">{record.id}</TableCell>
+            <TableCell className="text-muted-foreground whitespace-nowrap">
+              {formatDateTime(record.recorded_at)}
+            </TableCell>
+            <TableCell className="font-mono text-sm whitespace-nowrap">
+              {formatMsisdn(record.msisdn)}
+            </TableCell>
             <TableCell>{record.customer_name}</TableCell>
             <TableCell>
-              <span
-                className={`rounded-full px-2 py-1 text-xs font-medium ${typeColors[record.type]}`}
-              >
-                {record.type}
-              </span>
+              <div className="flex items-center gap-1">
+                <StatusBadge value={record.type} />
+                {record.roaming && <StatusBadge value="ROAMING" tone="orange" />}
+              </div>
             </TableCell>
             <TableCell className="text-right">
-              {record.quantity} {typeUnits[record.type]}
+              {formatUsage(record.quantity, record.unit)}
             </TableCell>
-            <TableCell className="text-right">${record.cost.toFixed(2)}</TableCell>
-            <TableCell className="text-muted-foreground">
-              {record.recorded_at ? new Date(record.recorded_at).toLocaleDateString() : "-"}
-            </TableCell>
+            <TableCell className="text-right">{formatMoney(record.cost)}</TableCell>
           </TableRow>
         ))}
       </TableBody>

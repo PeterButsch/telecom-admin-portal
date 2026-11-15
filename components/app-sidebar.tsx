@@ -2,7 +2,15 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, CreditCard, Smartphone, BarChart3, Ticket } from "lucide-react"
+import {
+  BarChart3,
+  CreditCard,
+  LayoutDashboard,
+  LifeBuoy,
+  Signal,
+  Smartphone,
+  Users,
+} from "lucide-react"
 
 import { Logo } from "@/components/logo"
 import { NavMain } from "@/components/nav-main"
@@ -42,6 +50,11 @@ const navItems = [
     icon: Users,
   },
   {
+    title: "Mobile Lines",
+    url: "/lines",
+    icon: Signal,
+  },
+  {
     title: "Plans",
     url: "/plans",
     icon: CreditCard,
@@ -57,9 +70,9 @@ const navItems = [
     icon: BarChart3,
   },
   {
-    title: "Support Tickets",
-    url: "/tickets",
-    icon: Ticket,
+    title: "Support Cases",
+    url: "/cases",
+    icon: LifeBuoy,
   },
 ]
 

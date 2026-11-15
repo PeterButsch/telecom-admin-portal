@@ -3,32 +3,36 @@
 import { useState, useEffect, useCallback } from "react"
 import { apiFetch, errorMessage } from "@/lib/api"
 
-export type DeviceStatus = "AVAILABLE" | "ASSIGNED" | "LOST" | "DAMAGED"
+export const DEVICE_STATUSES = ["AVAILABLE", "ASSIGNED", "LOST", "DAMAGED"] as const
+export type DeviceStatus = (typeof DEVICE_STATUSES)[number]
 
 export interface Device {
   id: number
   imei: string
+  manufacturer: string
   model: string
-  sim_number: string
+  status: DeviceStatus
+  line_id: number | null
+  msisdn: string | null
   customer_id: number | null
   customer_name: string | null
-  status: DeviceStatus
   assigned_at: string | null
   created_at: string | null
 }
 
 export interface DeviceCreate {
   imei: string
+  manufacturer: string
   model: string
-  simNumber: string
-  customerId?: number | null
+  /** Mobile number of the line to assign the device to; leave out to keep it in stock. */
+  msisdn?: string
 }
 
 export interface DeviceUpdate {
   imei?: string
+  manufacturer?: string
   model?: string
-  simNumber?: string
-  customerId?: number | null
+  msisdn?: string
   status?: DeviceStatus
 }
 

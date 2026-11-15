@@ -5,8 +5,9 @@ import { apiFetch, errorMessage } from "@/lib/api"
 
 export interface DashboardStats {
   active_customers: number
+  active_lines: number
   monthly_revenue: number
-  open_tickets: number
+  open_cases: number
   devices_in_use: number
 }
 
@@ -22,9 +23,9 @@ export interface RevenueData {
 
 export function useDashboardStats() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [customersByPlan, setCustomersByPlan] = useState<ChartData[]>([])
+  const [linesByPlan, setLinesByPlan] = useState<ChartData[]>([])
   const [devicesByStatus, setDevicesByStatus] = useState<ChartData[]>([])
-  const [ticketsByStatus, setTicketsByStatus] = useState<ChartData[]>([])
+  const [casesByStatus, setCasesByStatus] = useState<ChartData[]>([])
   const [revenueByPlan, setRevenueByPlan] = useState<RevenueData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,18 +33,18 @@ export function useDashboardStats() {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
-      const [statsData, customersPlan, devicesStatus, ticketsStatus, revenue] = await Promise.all([
+      const [statsData, linesPlan, devicesStatus, casesStatus, revenue] = await Promise.all([
         apiFetch<DashboardStats>("/api/dashboard/stats"),
-        apiFetch<ChartData[]>("/api/dashboard/customers-by-plan"),
+        apiFetch<ChartData[]>("/api/dashboard/lines-by-plan"),
         apiFetch<ChartData[]>("/api/dashboard/devices-by-status"),
-        apiFetch<ChartData[]>("/api/dashboard/tickets-by-status"),
+        apiFetch<ChartData[]>("/api/dashboard/cases-by-status"),
         apiFetch<RevenueData[]>("/api/dashboard/revenue-by-plan"),
       ])
 
       setStats(statsData)
-      setCustomersByPlan(customersPlan)
+      setLinesByPlan(linesPlan)
       setDevicesByStatus(devicesStatus)
-      setTicketsByStatus(ticketsStatus)
+      setCasesByStatus(casesStatus)
       setRevenueByPlan(revenue)
       setError(null)
     } catch (e) {
@@ -59,9 +60,9 @@ export function useDashboardStats() {
 
   return {
     stats,
-    customersByPlan,
+    linesByPlan,
     devicesByStatus,
-    ticketsByStatus,
+    casesByStatus,
     revenueByPlan,
     loading,
     error,

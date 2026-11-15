@@ -135,11 +135,6 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm exec playwright install chromium
 
-      - name: Setup database
-        run: |
-          python3 -m pip install --requirement scripts/requirements.txt
-          python3 scripts/seed-database.py
-
       - name: Run E2E tests
         run: pnpm test:e2e
 

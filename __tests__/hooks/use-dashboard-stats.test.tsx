@@ -4,17 +4,18 @@ import { useDashboardStats } from "@/hooks/use-dashboard-stats"
 
 const stats = {
   active_customers: 3,
+  active_lines: 9,
   monthly_revenue: 80,
-  open_tickets: 5,
+  open_cases: 5,
   devices_in_use: 7,
 }
 
 const payloads: Record<string, unknown> = {
   "/api/dashboard/stats": stats,
-  "/api/dashboard/customers-by-plan": [{ name: "Basic", value: 2 }],
+  "/api/dashboard/lines-by-plan": [{ name: "XO Plus 100GB", value: 2 }],
   "/api/dashboard/devices-by-status": [{ name: "ASSIGNED", value: 7 }],
-  "/api/dashboard/tickets-by-status": [{ name: "OPEN", value: 5 }],
-  "/api/dashboard/revenue-by-plan": [{ name: "Basic", revenue: 40 }],
+  "/api/dashboard/cases-by-status": [{ name: "OPEN", value: 5 }],
+  "/api/dashboard/revenue-by-plan": [{ name: "XO Plus 100GB", revenue: 150 }],
 }
 
 function stubFetch(overrides: { failStats?: boolean } = {}) {
@@ -61,10 +62,10 @@ describe("useDashboardStats", () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.stats).toEqual(stats)
-    expect(result.current.customersByPlan).toEqual([{ name: "Basic", value: 2 }])
+    expect(result.current.linesByPlan).toEqual([{ name: "XO Plus 100GB", value: 2 }])
     expect(result.current.devicesByStatus).toEqual([{ name: "ASSIGNED", value: 7 }])
-    expect(result.current.ticketsByStatus).toEqual([{ name: "OPEN", value: 5 }])
-    expect(result.current.revenueByPlan).toEqual([{ name: "Basic", revenue: 40 }])
+    expect(result.current.casesByStatus).toEqual([{ name: "OPEN", value: 5 }])
+    expect(result.current.revenueByPlan).toEqual([{ name: "XO Plus 100GB", revenue: 150 }])
     expect(result.current.error).toBeNull()
   })
 

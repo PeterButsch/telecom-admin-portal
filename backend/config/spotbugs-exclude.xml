@@ -28,9 +28,11 @@
         <Package name="com.example.telecom.model"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+
+    <!-- Demo data is generated from a fixed seed on purpose so every fresh database is identical. -->
     <Match>
-        <Class name="~com\.example\.telecom\.controller\.(SupportTicketController|UsageRecordController)\$PagedResponse"/>
-        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Package name="com.example.telecom.seed"/>
+        <Bug pattern="PREDICTABLE_RANDOM"/>
     </Match>
 
     <!-- Controller path IDs are numeric; SpotBugs treats all request parameters as CRLF-capable strings. -->

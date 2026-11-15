@@ -4,10 +4,14 @@ import jakarta.validation.ConstraintViolationException;
 import java.net.URI;
 import java.sql.SQLException;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.Temporal;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -35,6 +40,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
      * failures.
      */
     private static final int SQLITE_CONSTRAINT = 19;
+    private static final String VALIDATION_FAILED = "Validation failed";
+    private static final String INVALID_REQUEST = "Invalid request";
     private static final String CONFLICT_DETAIL = "The change conflicts with existing data, for example a duplicate value or a record that is still in use.";
 
     @ExceptionHandler(NotFoundException.class)
@@ -44,7 +51,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(BadRequestException.class)
     public ProblemDetail handleBadRequest(BadRequestException ex) {
-        return problem(HttpStatus.BAD_REQUEST, "Invalid request", ex.getMessage());
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(ConflictException.class)
@@ -52,15 +59,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem(HttpStatus.CONFLICT, "Conflict", ex.getMessage());
     }
 
+    @ExceptionHandler(FieldValidationException.class)
+    public ProblemDetail handleFieldValidation(FieldValidationException ex) {
+        ProblemDetail body = problem(HttpStatus.BAD_REQUEST, VALIDATION_FAILED, ex.getMessage());
+        body.setProperty("errors", ex.getErrors());
+        return body;
+    }
+
     @ExceptionHandler(DateTimeParseException.class)
     public ProblemDetail handleDateParse(DateTimeParseException ex) {
-        return problem(HttpStatus.BAD_REQUEST, "Invalid request",
+        return problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST,
                 "Dates must use the ISO format YYYY-MM-DD: '" + ex.getParsedString() + "'");
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ProblemDetail handleConstraintViolation(ConstraintViolationException ex) {
-        return problem(HttpStatus.BAD_REQUEST, "Validation failed", ex.getMessage());
+        return problem(HttpStatus.BAD_REQUEST, VALIDATION_FAILED, ex.getMessage());
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -92,7 +106,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
             errors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
         }
-        ProblemDetail body = problem(HttpStatus.BAD_REQUEST, "Validation failed", "One or more fields are invalid.");
+        ProblemDetail body = problem(HttpStatus.BAD_REQUEST, VALIDATION_FAILED, "One or more fields are invalid.");
         body.setProperty("errors", errors);
         return ResponseEntity.badRequest().body(body);
     }
@@ -100,9 +114,34 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
             HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        ProblemDetail body = problem(HttpStatus.BAD_REQUEST, "Invalid request",
+        ProblemDetail body = problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST,
                 "The request body is missing, is not valid JSON, or contains a value of the wrong type.");
         return ResponseEntity.badRequest().body(body);
+    }
+
+    /**
+     * Explains which query or path parameter had the wrong type, listing the
+     * allowed values for enums.
+     */
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException ex, HttpHeaders headers,
+            HttpStatusCode status, WebRequest request) {
+        String name = ex.getPropertyName() != null ? ex.getPropertyName() : "parameter";
+        if (ex instanceof MethodArgumentTypeMismatchException mismatch) {
+            name = mismatch.getName();
+        }
+        Class<?> type = ex.getRequiredType();
+        String detail;
+        if (type != null && type.isEnum()) {
+            detail = "Invalid value '" + ex.getValue() + "' for " + name + ". Allowed values: "
+                    + Arrays.stream(type.getEnumConstants()).map(String::valueOf).collect(Collectors.joining(", "))
+                    + ".";
+        } else if (type != null && Temporal.class.isAssignableFrom(type)) {
+            detail = "Invalid value '" + ex.getValue() + "' for " + name + ". Dates must use the format YYYY-MM-DD.";
+        } else {
+            detail = "Invalid value '" + ex.getValue() + "' for " + name + ".";
+        }
+        return ResponseEntity.badRequest().body(problem(HttpStatus.BAD_REQUEST, INVALID_REQUEST, detail));
     }
 
     static boolean isConstraintViolation(Throwable ex) {

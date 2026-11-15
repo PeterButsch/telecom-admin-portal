@@ -3,34 +3,49 @@ import { describe, it, expect, vi } from "vitest"
 import { CustomersTable } from "@/components/customers-table"
 import type { Customer } from "@/hooks/use-customers"
 
-const customers: Customer[] = [
-  {
-    id: 1,
-    first_name: "Ada",
-    last_name: "Lovelace",
-    email: "ada@example.com",
-    phone: "555-0100",
-    plan_id: 2,
-    plan_name: "Standard",
-    status: "ACTIVE",
-    balance: 12.3,
-    activated_at: "2026-01-01T00:00:00Z",
-    created_at: "2026-01-01T00:00:00Z",
-  },
-  {
-    id: 2,
-    first_name: "Grace",
-    last_name: "Hopper",
-    email: "grace@example.com",
-    phone: "555-0101",
-    plan_id: null,
-    plan_name: null,
-    status: "SUSPENDED",
-    balance: 0,
-    activated_at: null,
-    created_at: "2026-01-02T00:00:00Z",
-  },
-]
+const individual: Customer = {
+  id: 1,
+  customer_number: "C1000001",
+  type: "INDIVIDUAL",
+  display_name: "Tan Wei Ming",
+  first_name: "Wei Ming",
+  last_name: "Tan",
+  company_name: null,
+  uen: null,
+  contact_name: null,
+  id_type: "NRIC",
+  id_number_masked: "*****567D",
+  date_of_birth: null,
+  email: "weiming.tan@example.com",
+  phone: "9123 4567",
+  address_line: null,
+  postal_code: null,
+  status: "ACTIVE",
+  account_count: 1,
+  line_count: 3,
+  active_line_count: 2,
+  total_balance: 12.3,
+  created_at: "2026-01-01T00:00:00Z",
+}
+
+const business: Customer = {
+  ...individual,
+  id: 2,
+  customer_number: "C1000002",
+  type: "BUSINESS",
+  display_name: "Lion City Logistics Pte Ltd",
+  first_name: null,
+  last_name: null,
+  company_name: "Lion City Logistics Pte Ltd",
+  uen: "201912345K",
+  contact_name: "Priya Nair",
+  id_type: null,
+  id_number_masked: null,
+  status: "SUSPENDED",
+  total_balance: -5,
+}
+
+const customers = [individual, business]
 
 describe("CustomersTable", () => {
   it("renders the expected column headers", () => {
@@ -38,43 +53,43 @@ describe("CustomersTable", () => {
 
     const headers = screen.getAllByRole("columnheader").map((cell) => cell.textContent)
     expect(headers).toEqual([
-      "ID",
+      "Customer no.",
       "Name",
-      "Email",
-      "Phone",
-      "Plan",
+      "ID",
+      "Contact",
+      "Lines",
       "Status",
       "Balance",
       "Actions",
     ])
   })
 
-  it("joins first and last name into a single cell", () => {
+  it("shows the masked NRIC for individuals and the UEN for businesses", () => {
     render(<CustomersTable customers={customers} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
-    expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
+    expect(screen.getByText("NRIC *****567D")).toBeInTheDocument()
+    expect(screen.getByText("UEN 201912345K")).toBeInTheDocument()
+    expect(screen.getByText("Priya Nair")).toBeInTheDocument()
   })
 
-  it("formats the balance to two decimal places", () => {
+  it("formats balances in Singapore dollars", () => {
     render(<CustomersTable customers={customers} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
-    expect(screen.getByText("$12.30")).toBeInTheDocument()
-    expect(screen.getByText("$0.00")).toBeInTheDocument()
+    expect(screen.getByText("S$12.30")).toBeInTheDocument()
+    expect(screen.getByText("-S$5.00")).toBeInTheDocument()
   })
 
-  it("falls back to a dash when the customer has no plan", () => {
+  it("shows active and total line counts", () => {
     render(<CustomersTable customers={customers} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
-    expect(screen.getByText("Standard")).toBeInTheDocument()
-    expect(screen.getByText("-")).toBeInTheDocument()
+    expect(screen.getAllByText("2 / 3")).toHaveLength(2)
   })
 
-  it("renders the raw status value as a badge", () => {
+  it("renders readable status badges", () => {
     render(<CustomersTable customers={customers} onEdit={vi.fn()} onDelete={vi.fn()} />)
 
-    expect(screen.getByText("ACTIVE")).toBeInTheDocument()
-    expect(screen.getByText("SUSPENDED")).toBeInTheDocument()
+    expect(screen.getByText("Active")).toBeInTheDocument()
+    expect(screen.getByText("Suspended")).toBeInTheDocument()
   })
 
   it("calls onEdit and onDelete with the row's customer", () => {
@@ -82,11 +97,10 @@ describe("CustomersTable", () => {
     const onDelete = vi.fn()
     render(<CustomersTable customers={customers} onEdit={onEdit} onDelete={onDelete} />)
 
-    const buttons = screen.getAllByRole("button")
-    buttons[0].click()
-    buttons[1].click()
+    screen.getByRole("button", { name: "Edit Tan Wei Ming" }).click()
+    screen.getByRole("button", { name: "Delete Lion City Logistics Pte Ltd" }).click()
 
-    expect(onEdit).toHaveBeenCalledWith(customers[0])
-    expect(onDelete).toHaveBeenCalledWith(customers[0])
+    expect(onEdit).toHaveBeenCalledWith(individual)
+    expect(onDelete).toHaveBeenCalledWith(business)
   })
 })

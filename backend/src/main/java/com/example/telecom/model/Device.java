@@ -1,6 +1,18 @@
 package com.example.telecom.model;
 
-import jakarta.persistence.*;
+import com.example.telecom.api.Times;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
@@ -15,44 +27,33 @@ public class Device {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "imei", nullable = false)
     private String imei;
 
-    @Column(nullable = false)
+    @Column(name = "manufacturer", nullable = false)
+    private String manufacturer;
+
+    @Column(name = "model", nullable = false)
     private String model;
 
-    @Column(name = "sim_number", nullable = false, unique = true)
-    private String simNumber;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private Status status = Status.AVAILABLE;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "customer_id")
-    private Customer customer;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Status status = Status.AVAILABLE;
+    @JoinColumn(name = "line_id")
+    private MobileLine line;
 
     @Column(name = "assigned_at")
     private Instant assignedAt;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    public Device() {
-    }
-
-    public Device(String imei, String model, String simNumber) {
-        this.imei = imei;
-        this.model = model;
-        this.simNumber = simNumber;
-        this.status = Status.AVAILABLE;
-        this.createdAt = Instant.now();
-    }
-
     @PrePersist
-    public void prePersist() {
-        if (this.createdAt == null) {
-            this.createdAt = Instant.now();
+    void prePersist() {
+        if (createdAt == null) {
+            createdAt = Times.now();
         }
     }
 
@@ -72,6 +73,14 @@ public class Device {
         this.imei = imei;
     }
 
+    public String getManufacturer() {
+        return manufacturer;
+    }
+
+    public void setManufacturer(String manufacturer) {
+        this.manufacturer = manufacturer;
+    }
+
     public String getModel() {
         return model;
     }
@@ -80,28 +89,20 @@ public class Device {
         this.model = model;
     }
 
-    public String getSimNumber() {
-        return simNumber;
-    }
-
-    public void setSimNumber(String simNumber) {
-        this.simNumber = simNumber;
-    }
-
-    public Customer getCustomer() {
-        return customer;
-    }
-
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
-    }
-
     public Status getStatus() {
         return status;
     }
 
     public void setStatus(Status status) {
         this.status = status;
+    }
+
+    public MobileLine getLine() {
+        return line;
+    }
+
+    public void setLine(MobileLine line) {
+        this.line = line;
     }
 
     public Instant getAssignedAt() {

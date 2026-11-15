@@ -1,131 +1,146 @@
 "use client"
 
-import { useState } from "react"
-import { AppSidebar } from "@/components/app-sidebar"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { useMemo, useState } from "react"
+import { Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus } from "lucide-react"
-import { HealthStatus } from "@/components/health-status"
 import { ConfirmDialog } from "@/components/confirm-dialog"
-import { PlansTable } from "@/components/plans-table"
+import { FilterSelect } from "@/components/filter-select"
+import { PageShell } from "@/components/page-shell"
 import { PlanFormDialog } from "@/components/plan-form-dialog"
-import { usePlans, type Plan, type PlanCreate, type PlanUpdate } from "@/hooks/use-plans"
+import { PlansTable } from "@/components/plans-table"
+import {
+  BRANDS,
+  PLAN_CATEGORIES,
+  SEGMENTS,
+  usePlans,
+  type Brand,
+  type Plan,
+  type PlanCategory,
+  type PlanRequest,
+  type Segment,
+} from "@/hooks/use-plans"
+import { options } from "@/lib/labels"
 
 export default function PlansPage() {
   const { plans, loading, error, createPlan, updatePlan, deletePlan } = usePlans()
-
+  const [brand, setBrand] = useState<Brand | null>(null)
+  const [category, setCategory] = useState<PlanCategory | null>(null)
+  const [segment, setSegment] = useState<Segment | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [planToDelete, setPlanToDelete] = useState<Plan | null>(null)
 
-  const handleAdd = () => {
-    setEditingPlan(null)
-    setFormOpen(true)
-  }
+  const shown = useMemo(
+    () =>
+      plans.filter(
+        (p) =>
+          (!brand || p.brand === brand) &&
+          (!category || p.category === category) &&
+          (!segment || p.segment === segment)
+      ),
+    [plans, brand, category, segment]
+  )
 
-  const handleEdit = (plan: Plan) => {
-    setEditingPlan(plan)
-    setFormOpen(true)
-  }
-
-  const handleDeleteClick = (plan: Plan) => {
-    setPlanToDelete(plan)
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteConfirm = async () => {
-    if (planToDelete) {
-      await deletePlan(planToDelete.id)
-      setPlanToDelete(null)
-    }
-  }
-
-  const handleFormSubmit = async (data: PlanCreate | PlanUpdate) => {
+  const handleFormSubmit = async (data: PlanRequest) => {
     if (editingPlan) {
-      await updatePlan(editingPlan.id, data as PlanUpdate)
+      await updatePlan(editingPlan.id, data)
     } else {
-      await createPlan(data as PlanCreate)
+      await createPlan(data)
     }
   }
 
   return (
-    <SidebarProvider className="h-svh">
-      <AppSidebar />
-      <SidebarInset className="overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex flex-1 items-center gap-2 px-4">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem className="hidden md:block">
-                  <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden md:block" />
-                <BreadcrumbItem>
-                  <BreadcrumbPage>Plans</BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-            <div className="ml-auto">
-              <HealthStatus />
-            </div>
-          </div>
-        </header>
-        <div className="flex flex-1 flex-col gap-4 overflow-hidden p-4 pt-0">
-          <Card className="flex flex-1 flex-col overflow-hidden">
-            <CardHeader className="flex shrink-0 flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-headline-2">Service Plans</CardTitle>
-              <Button onClick={handleAdd}>
+    <PageShell title="Plans">
+      <Card className="flex flex-1 flex-col overflow-hidden">
+        <CardHeader className="shrink-0 space-y-4">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-headline-2">Plan Catalogue</CardTitle>
+            <div className="flex items-center gap-4">
+              <span className="text-muted-foreground text-sm">
+                {loading ? "Loading..." : `${shown.length} of ${plans.length} plans`}
+              </span>
+              <Button
+                onClick={() => {
+                  setEditingPlan(null)
+                  setFormOpen(true)
+                }}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Plan
               </Button>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
-              {loading ? (
-                <div className="text-muted-foreground py-8 text-center">Loading...</div>
-              ) : error ? (
-                <div className="py-8 text-center text-red-500">{error}</div>
-              ) : (
-                <div className="h-full overflow-auto">
-                  <PlansTable plans={plans} onEdit={handleEdit} onDelete={handleDeleteClick} />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-end gap-4">
+            <FilterSelect
+              id="brand-filter"
+              label="Brand"
+              value={brand}
+              options={options(BRANDS)}
+              onChange={(v) => setBrand(v as Brand | null)}
+            />
+            <FilterSelect
+              id="category-filter"
+              label="Category"
+              value={category}
+              options={options(PLAN_CATEGORIES)}
+              onChange={(v) => setCategory(v as PlanCategory | null)}
+            />
+            <FilterSelect
+              id="segment-filter"
+              label="Segment"
+              value={segment}
+              options={options(SEGMENTS)}
+              onChange={(v) => setSegment(v as Segment | null)}
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-hidden">
+          {loading ? (
+            <div className="text-muted-foreground flex h-full items-center justify-center">
+              <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+              Loading...
+            </div>
+          ) : error ? (
+            <div role="alert" className="text-destructive py-8 text-center">
+              {error}
+            </div>
+          ) : (
+            <div className="h-full overflow-auto">
+              <PlansTable
+                plans={shown}
+                onEdit={(plan) => {
+                  setEditingPlan(plan)
+                  setFormOpen(true)
+                }}
+                onDelete={setPlanToDelete}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <PlanFormDialog
-          open={formOpen}
-          onOpenChange={setFormOpen}
-          plan={editingPlan}
-          onSubmit={handleFormSubmit}
-        />
+      <PlanFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        plan={editingPlan}
+        onSubmit={handleFormSubmit}
+      />
 
-        <ConfirmDialog
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          title="Delete Plan"
-          description={
-            <>
-              Delete &quot;{planToDelete?.name}&quot;? Plans that customers still use cannot be
-              deleted; mark them inactive instead.
-            </>
-          }
-          onConfirm={handleDeleteConfirm}
-        />
-      </SidebarInset>
-    </SidebarProvider>
+      <ConfirmDialog
+        open={planToDelete !== null}
+        onOpenChange={(open) => !open && setPlanToDelete(null)}
+        title="Delete Plan"
+        description={
+          <>
+            Delete &quot;{planToDelete?.name}&quot;? Plans that have ever had a line cannot be
+            deleted; mark them inactive instead.
+          </>
+        }
+        onConfirm={async () => {
+          if (planToDelete) await deletePlan(planToDelete.id)
+        }}
+      />
+    </PageShell>
   )
 }

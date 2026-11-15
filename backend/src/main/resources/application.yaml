@@ -6,17 +6,28 @@ spring:
     # foreign_keys=true makes SQLite enforce the REFERENCES clauses in the schema.
     # date_class=TEXT stores timestamps as "yyyy-MM-dd HH:mm:ss.SSS" (UTC), the same format the seed script
     # writes. The driver default (epoch millis) breaks range filters, because SQLite sorts integers before text.
-    url: jdbc:sqlite:${APP_DB_PATH:app.db}?foreign_keys=true&busy_timeout=5000&date_class=TEXT
+    # journal_mode=WAL lets readers continue while a write is in progress.
+    url: jdbc:sqlite:${APP_DB_PATH:app.db}?foreign_keys=true&busy_timeout=5000&date_class=TEXT&journal_mode=WAL
     driver-class-name: org.sqlite.JDBC
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     open-in-view: false
     hibernate:
+      # Flyway owns the schema (src/main/resources/db/migration).
       ddl-auto: none
     show-sql: false
+    properties:
+      hibernate.default_batch_fetch_size: 100
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 app:
   max-request-bytes: 1048576
+  demo-data:
+    # Fills an empty database with generated Singapore demo data on startup.
+    enabled: ${APP_DEMO_DATA:true}
+    seed: 42
 
 management:
   endpoints:

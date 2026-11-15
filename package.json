@@ -26,9 +26,8 @@
     "format:check": "prettier --check . && cd backend && ./gradlew formatCheck",
     "format:frontend": "prettier --write .",
     "format:backend": "cd backend && ./gradlew format",
-    "setup": "pnpm install --frozen-lockfile && pnpm setup:db",
-    "setup:db": "python3 scripts/seed-database.py",
-    "reset:db": "rm -f backend/app.db && pnpm setup:db",
+    "setup": "pnpm install --frozen-lockfile",
+    "reset:db": "rm -f backend/app.db backend/app.db-wal backend/app.db-shm",
     "prepare": "husky"
   },
   "lint-staged": {
