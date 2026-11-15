@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Loader2, Plus } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -23,6 +24,7 @@ import {
 import { options } from "@/lib/labels"
 
 export default function PlansPage() {
+  const canWrite = useAuth().can("PLAN_WRITE")
   const { plans, loading, error, createPlan, updatePlan, deletePlan } = usePlans()
   const [brand, setBrand] = useState<Brand | null>(null)
   const [category, setCategory] = useState<PlanCategory | null>(null)
@@ -60,15 +62,17 @@ export default function PlansPage() {
               <span className="text-muted-foreground text-sm">
                 {loading ? "Loading..." : `${shown.length} of ${plans.length} plans`}
               </span>
-              <Button
-                onClick={() => {
-                  setEditingPlan(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Plan
-              </Button>
+              {canWrite && (
+                <Button
+                  onClick={() => {
+                    setEditingPlan(null)
+                    setFormOpen(true)
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Plan
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-4">
@@ -109,11 +113,15 @@ export default function PlansPage() {
             <div className="h-full overflow-auto">
               <PlansTable
                 plans={shown}
-                onEdit={(plan) => {
-                  setEditingPlan(plan)
-                  setFormOpen(true)
-                }}
-                onDelete={setPlanToDelete}
+                onEdit={
+                  canWrite
+                    ? (plan) => {
+                        setEditingPlan(plan)
+                        setFormOpen(true)
+                      }
+                    : undefined
+                }
+                onDelete={canWrite ? setPlanToDelete : undefined}
               />
             </div>
           )}

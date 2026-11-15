@@ -17,7 +17,8 @@ import type { SupportCase } from "@/hooks/use-cases"
 
 interface CasesTableProps {
   cases: SupportCase[]
-  onEdit: (supportCase: SupportCase) => void
+  /** Leave out when the user may not update cases; the edit button is then hidden. */
+  onEdit?: (supportCase: SupportCase) => void
 }
 
 const DONE = new Set(["RESOLVED", "CLOSED"])
@@ -34,7 +35,7 @@ export function CasesTable({ cases, onEdit }: CasesTableProps) {
           <TableHead>Status</TableHead>
           <TableHead>SLA due</TableHead>
           <TableHead>Opened</TableHead>
-          <TableHead className="w-[60px] text-right">Actions</TableHead>
+          {onEdit && <TableHead className="w-[60px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -74,17 +75,19 @@ export function CasesTable({ cases, onEdit }: CasesTableProps) {
             <TableCell className="text-muted-foreground whitespace-nowrap">
               {formatShortDateTime(supportCase.created_at)}
             </TableCell>
-            <TableCell className="text-right">
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Edit case ${supportCase.case_number}`}
-                disabled={supportCase.status === "CLOSED"}
-                onClick={() => onEdit(supportCase)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </TableCell>
+            {onEdit && (
+              <TableCell className="text-right">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Edit case ${supportCase.case_number}`}
+                  disabled={supportCase.status === "CLOSED"}
+                  onClick={() => onEdit(supportCase)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

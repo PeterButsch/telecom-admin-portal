@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Plus, X } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CaseFormDialog } from "@/components/case-form-dialog"
@@ -27,6 +28,7 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { options } from "@/lib/labels"
 
 export default function CasesPage() {
+  const canWrite = useAuth().can("CASE_WRITE")
   const [search, setSearch] = useState("")
   const [priority, setPriority] = useState<CasePriority | null>(null)
   const [status, setStatus] = useState<CaseStatus | null>(null)
@@ -66,15 +68,17 @@ export default function CasesPage() {
                 total={list.totalElements}
                 noun="cases"
               />
-              <Button
-                onClick={() => {
-                  setEditingCase(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Case
-              </Button>
+              {canWrite && (
+                <Button
+                  onClick={() => {
+                    setEditingCase(null)
+                    setFormOpen(true)
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Case
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-4">
@@ -140,10 +144,14 @@ export default function CasesPage() {
           >
             <CasesTable
               cases={list.cases}
-              onEdit={(supportCase) => {
-                setEditingCase(supportCase)
-                setFormOpen(true)
-              }}
+              onEdit={
+                canWrite
+                  ? (supportCase) => {
+                      setEditingCase(supportCase)
+                      setFormOpen(true)
+                    }
+                  : undefined
+              }
             />
           </PagedListBody>
         </CardContent>

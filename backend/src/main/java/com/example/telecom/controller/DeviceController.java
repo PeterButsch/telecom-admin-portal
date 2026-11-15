@@ -1,6 +1,9 @@
 package com.example.telecom.controller;
 
 import com.example.telecom.api.Times;
+import com.example.telecom.audit.AuditAction;
+import com.example.telecom.audit.AuditService;
+import com.example.telecom.audit.ChangeSet;
 import com.example.telecom.error.BadRequestException;
 import com.example.telecom.error.ConflictException;
 import com.example.telecom.error.FieldValidationException;
@@ -47,10 +50,12 @@ public class DeviceController {
 
     private final DeviceRepository repository;
     private final MobileLineRepository lineRepository;
+    private final AuditService audit;
 
-    public DeviceController(DeviceRepository repository, MobileLineRepository lineRepository) {
+    public DeviceController(DeviceRepository repository, MobileLineRepository lineRepository, AuditService audit) {
         this.repository = repository;
         this.lineRepository = lineRepository;
+        this.audit = audit;
     }
 
     @GetMapping
@@ -79,6 +84,8 @@ public class DeviceController {
         }
         Device saved = repository.save(device);
         LOG.info("Device created: id={}", saved.getId());
+        audit.record(AuditAction.DEVICE_CREATED, saved.getId(), "Added " + saved.getManufacturer() + " "
+                + saved.getModel() + " IMEI " + saved.getImei() + assignment(saved));
         return DeviceResponse.from(saved);
     }
 
@@ -92,6 +99,10 @@ public class DeviceController {
     public DeviceResponse updateDevice(@PathVariable Long id, @Valid @RequestBody DeviceUpdateRequest request) {
         Device device = findDevice(id);
         ensureUniqueImei(request.imei(), id);
+        String imei = device.getImei();
+        String model = device.getManufacturer() + " " + device.getModel();
+        Device.Status status = device.getStatus();
+        String msisdn = device.getLine() != null ? device.getLine().getMsisdn() : null;
         if (request.imei() != null) {
             device.setImei(request.imei());
         }
@@ -102,7 +113,15 @@ public class DeviceController {
             device.setModel(request.model().trim());
         }
         applyAssignment(device, request);
-        return DeviceResponse.from(repository.save(device));
+        Device saved = repository.save(device);
+        ChangeSet changes = new ChangeSet().value("IMEI", imei, saved.getImei())
+                .value("model", model, saved.getManufacturer() + " " + saved.getModel())
+                .value("status", status, saved.getStatus())
+                .value("line", msisdn, saved.getLine() != null ? saved.getLine().getMsisdn() : null);
+        if (!changes.isEmpty()) {
+            audit.record(AuditAction.DEVICE_UPDATED, id, "Updated device " + imei + ": " + changes.describe());
+        }
+        return DeviceResponse.from(saved);
     }
 
     private void applyAssignment(Device device, DeviceUpdateRequest request) {
@@ -137,6 +156,7 @@ public class DeviceController {
             throw new ConflictException("Device " + id + " is assigned to a line. Release it before deleting it.");
         }
         repository.delete(device);
+        audit.record(AuditAction.DEVICE_DELETED, id, "Deleted device " + device.getImei());
         return ResponseEntity.noContent().build();
     }
 
@@ -173,6 +193,10 @@ public class DeviceController {
     static String normalizeMsisdn(String value) {
         String digits = value.replaceAll("\\D", "");
         return digits.length() > 8 && digits.startsWith("65") ? digits.substring(2) : digits;
+    }
+
+    private static String assignment(Device device) {
+        return device.getLine() != null ? ", assigned to " + device.getLine().getMsisdn() : "";
     }
 
     private static void assign(Device device, MobileLine line) {

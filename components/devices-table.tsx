@@ -16,11 +16,13 @@ import type { Device } from "@/hooks/use-devices"
 
 interface DevicesTableProps {
   devices: Device[]
-  onEdit: (device: Device) => void
-  onDelete: (device: Device) => void
+  /** Leave out the handlers when the user may not change the inventory. */
+  onEdit?: (device: Device) => void
+  onDelete?: (device: Device) => void
 }
 
 export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
+  const hasActions = Boolean(onEdit || onDelete)
   return (
     <Table>
       <TableHeader className="bg-background sticky top-0 z-10">
@@ -31,7 +33,7 @@ export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
           <TableHead>Customer</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Assigned</TableHead>
-          <TableHead className="w-[100px] text-right">Actions</TableHead>
+          {hasActions && <TableHead className="w-[100px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -52,26 +54,32 @@ export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
             <TableCell className="text-muted-foreground whitespace-nowrap">
               {formatDate(device.assigned_at)}
             </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Edit device ${device.imei}`}
-                  onClick={() => onEdit(device)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Delete device ${device.imei}`}
-                  onClick={() => onDelete(device)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </TableCell>
+            {hasActions && (
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  {onEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit device ${device.imei}`}
+                      onClick={() => onEdit(device)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete device ${device.imei}`}
+                      onClick={() => onDelete(device)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

@@ -1,6 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test"
-
-const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080"
+import { signInApi } from "./support"
 
 interface Page<T> {
   content: T[]
@@ -18,7 +17,7 @@ async function allPages<T>(request: APIRequestContext, path: string): Promise<T[
   const items: T[] = []
   for (let page = 0; ; page++) {
     const separator = path.includes("?") ? "&" : "?"
-    const res = await request.get(`${backendUrl}${path}${separator}page=${page}&size=100`)
+    const res = await request.get(`${path}${separator}page=${page}&size=100`)
     expect(res.ok()).toBeTruthy()
     const body: Page<T> = await res.json()
     items.push(...body.content)
@@ -27,7 +26,7 @@ async function allPages<T>(request: APIRequestContext, path: string): Promise<T[
 }
 
 async function total(request: APIRequestContext, path: string) {
-  const res = await request.get(`${backendUrl}${path}`)
+  const res = await request.get(path)
   expect(res.ok()).toBeTruthy()
   return ((await res.json()) as Page<unknown>).totalElements
 }
@@ -37,9 +36,19 @@ async function total(request: APIRequestContext, path: string) {
  * barred and terminated lines, so an aggregate that forgets to filter on ACTIVE shows up here.
  */
 test.describe("Dashboard aggregates", () => {
-  test("monthly revenue is the plan price of every active line", async ({ request }) => {
-    const stats = await (await request.get(`${backendUrl}/api/dashboard/stats`)).json()
-    const activeLines = await allPages<ApiLine>(request, "/api/lines?status=ACTIVE")
+  let api: APIRequestContext
+
+  test.beforeAll(async () => {
+    api = await signInApi()
+  })
+
+  test.afterAll(async () => {
+    await api.dispose()
+  })
+
+  test("monthly revenue is the plan price of every active line", async () => {
+    const stats = await (await api.get("/api/dashboard/stats")).json()
+    const activeLines = await allPages<ApiLine>(api, "/api/lines?status=ACTIVE")
 
     expect(activeLines.every((line) => line.status === "ACTIVE")).toBeTruthy()
     const expected = activeLines.reduce((sum, line) => sum + Number(line.monthly_price), 0)
@@ -47,11 +56,11 @@ test.describe("Dashboard aggregates", () => {
     expect(stats.active_lines).toBe(activeLines.length)
   })
 
-  test("revenue by plan matches the active lines on each plan", async ({ request }) => {
+  test("revenue by plan matches the active lines on each plan", async () => {
     const revenue: { name: string; revenue: number }[] = await (
-      await request.get(`${backendUrl}/api/dashboard/revenue-by-plan`)
+      await api.get("/api/dashboard/revenue-by-plan")
     ).json()
-    const activeLines = await allPages<ApiLine>(request, "/api/lines?status=ACTIVE")
+    const activeLines = await allPages<ApiLine>(api, "/api/lines?status=ACTIVE")
 
     const byPlan = new Map<string, number>()
     for (const line of activeLines) {
@@ -63,13 +72,13 @@ test.describe("Dashboard aggregates", () => {
     }
   })
 
-  test("customer and case counts match the filtered lists", async ({ request }) => {
-    const stats = await (await request.get(`${backendUrl}/api/dashboard/stats`)).json()
+  test("customer and case counts match the filtered lists", async () => {
+    const stats = await (await api.get("/api/dashboard/stats")).json()
 
-    expect(stats.active_customers).toBe(await total(request, "/api/customers?status=ACTIVE"))
+    expect(stats.active_customers).toBe(await total(api, "/api/customers?status=ACTIVE"))
     const open = await Promise.all(
       ["OPEN", "IN_PROGRESS", "PENDING_CUSTOMER"].map((status) =>
-        total(request, `/api/cases?status=${status}`)
+        total(api, `/api/cases?status=${status}`)
       )
     )
     expect(stats.open_cases).toBe(open.reduce((a, b) => a + b, 0))

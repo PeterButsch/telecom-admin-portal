@@ -1,6 +1,15 @@
 import { test, expect } from "@playwright/test"
 
-const listPages = ["/customers", "/lines", "/plans", "/devices", "/usage", "/cases"]
+const listPages = [
+  "/customers",
+  "/lines",
+  "/plans",
+  "/devices",
+  "/usage",
+  "/cases",
+  "/staff",
+  "/audit",
+]
 
 test.describe("Navigation", () => {
   test("should navigate to all main pages", async ({ page }) => {
@@ -30,5 +39,8 @@ test.describe("Navigation", () => {
 
     await page.getByRole("link", { name: /support cases/i }).click()
     await expect(page).toHaveURL(/.*cases/)
+
+    await page.getByRole("link", { name: /audit log/i }).click()
+    await expect(page).toHaveURL(/.*audit/)
   })
 })

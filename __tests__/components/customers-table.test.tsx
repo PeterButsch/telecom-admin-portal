@@ -92,6 +92,20 @@ describe("CustomersTable", () => {
     expect(screen.getByText("Suspended")).toBeInTheDocument()
   })
 
+  it("hides the actions the user may not take", () => {
+    render(<CustomersTable customers={customers} onEdit={vi.fn()} />)
+
+    expect(screen.getByRole("button", { name: "Edit Tan Wei Ming" })).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: /^Delete / })).not.toBeInTheDocument()
+  })
+
+  it("drops the actions column for read-only users", () => {
+    render(<CustomersTable customers={customers} />)
+
+    expect(screen.queryByRole("columnheader", { name: "Actions" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button")).not.toBeInTheDocument()
+  })
+
   it("calls onEdit and onDelete with the row's customer", () => {
     const onEdit = vi.fn()
     const onDelete = vi.fn()

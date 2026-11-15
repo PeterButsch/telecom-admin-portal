@@ -4,6 +4,9 @@ import com.example.telecom.api.PageResponse;
 import com.example.telecom.api.Paging;
 import com.example.telecom.api.SearchTerms;
 import com.example.telecom.api.Times;
+import com.example.telecom.audit.AuditAction;
+import com.example.telecom.audit.AuditService;
+import com.example.telecom.audit.ChangeSet;
 import com.example.telecom.error.ConflictException;
 import com.example.telecom.error.NotFoundException;
 import com.example.telecom.model.Customer;
@@ -44,6 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/customers")
+@SuppressWarnings("PMD.CouplingBetweenObjects")
 public class CustomerController {
 
     private static final Logger LOG = LoggerFactory.getLogger(CustomerController.class);
@@ -58,13 +62,15 @@ public class CustomerController {
     private final AccountRepository accountRepository;
     private final MobileLineRepository lineRepository;
     private final SupportCaseRepository caseRepository;
+    private final AuditService audit;
 
     public CustomerController(CustomerRepository repository, AccountRepository accountRepository,
-            MobileLineRepository lineRepository, SupportCaseRepository caseRepository) {
+            MobileLineRepository lineRepository, SupportCaseRepository caseRepository, AuditService audit) {
         this.repository = repository;
         this.accountRepository = accountRepository;
         this.lineRepository = lineRepository;
         this.caseRepository = caseRepository;
+        this.audit = audit;
     }
 
     /**
@@ -85,10 +91,15 @@ public class CustomerController {
         return PageResponse.of(result, c -> CustomerResponse.from(c, summaries.get(c.getId()), false));
     }
 
+    /**
+     * Returns one customer including date of birth. Each view is audited because
+     * it shows more personal data than the list.
+     */
     @GetMapping("/{id}")
-    @Transactional(readOnly = true)
+    @Transactional
     public CustomerResponse getCustomer(@PathVariable Long id) {
         Customer customer = findCustomer(id);
+        audit.record(AuditAction.CUSTOMER_VIEWED, id, "Viewed customer " + customer.getCustomerNumber());
         return CustomerResponse.from(customer, summarize(List.of(customer)).get(id), true);
     }
 
@@ -102,6 +113,8 @@ public class CustomerController {
         customer.setCustomerNumber("C" + (1_000_000 + repository.findMaxId() + 1));
         Customer saved = repository.save(customer);
         LOG.info("Customer created: id={}", saved.getId());
+        audit.record(AuditAction.CUSTOMER_CREATED, saved.getId(), "Created "
+                + saved.getType().name().toLowerCase(Locale.ROOT) + " customer " + saved.getCustomerNumber());
         return CustomerResponse.from(saved, null, true);
     }
 
@@ -120,8 +133,14 @@ public class CustomerController {
                 throw new ConflictException("A customer with the email " + email + " already exists.");
             }
         }
+        Snapshot before = Snapshot.of(customer);
         CustomerRules.applyUpdate(customer, request);
         Customer saved = repository.save(customer);
+        ChangeSet changes = before.compareWith(saved);
+        if (!changes.isEmpty()) {
+            audit.record(AuditAction.CUSTOMER_UPDATED, id,
+                    "Updated customer " + saved.getCustomerNumber() + ": " + changes.describe());
+        }
         return CustomerResponse.from(saved, summarize(List.of(saved)).get(id), true);
     }
 
@@ -129,15 +148,30 @@ public class CustomerController {
     @Transactional
     public ResponseEntity<Void> deleteCustomer(@PathVariable Long id) {
         LOG.info("Deleting customer: id={}", id);
-        if (!repository.existsById(id)) {
-            throw new NotFoundException(CUSTOMER + id + DOES_NOT_EXIST);
-        }
+        Customer customer = findCustomer(id);
         if (accountRepository.existsByCustomerId(id) || caseRepository.existsByCustomerId(id)) {
             throw new ConflictException(
                     CUSTOMER + id + " has accounts or support cases. Set the status to CLOSED instead of deleting.");
         }
-        repository.deleteById(id);
+        repository.delete(customer);
+        audit.record(AuditAction.CUSTOMER_DELETED, id, "Deleted customer " + customer.getCustomerNumber());
         return ResponseEntity.noContent().build();
+    }
+
+    /** Customer fields before an update, to describe what changed. */
+    private record Snapshot(String name, String contactName, String email, String phone, String addressLine,
+            String postalCode, Customer.Status status) {
+        static Snapshot of(Customer c) {
+            return new Snapshot(c.displayName(), c.getContactName(), c.getEmail(), c.getPhone(), c.getAddressLine(),
+                    c.getPostalCode(), c.getStatus());
+        }
+
+        ChangeSet compareWith(Customer c) {
+            return new ChangeSet().field("name", name, c.displayName())
+                    .field("contact name", contactName, c.getContactName()).field("email", email, c.getEmail())
+                    .field("phone", phone, c.getPhone()).field("address", addressLine, c.getAddressLine())
+                    .field("postal code", postalCode, c.getPostalCode()).value("status", status, c.getStatus());
+        }
     }
 
     private void ensureUnique(Customer customer) {

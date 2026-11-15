@@ -36,6 +36,10 @@ const VALUE_TONES: Record<string, Tone> = {
   TERMINATED: "gray",
   CLOSED: "gray",
   LOW: "gray",
+  SUCCESS: "green",
+  FAILED: "red",
+  DENIED: "orange",
+  LOCKED: "red",
 }
 
 /** Small coloured label for an enum value such as a status or priority. */

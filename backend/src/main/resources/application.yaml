@@ -22,12 +22,32 @@ spring:
     enabled: true
     locations: classpath:db/migration
 
+server:
+  servlet:
+    session:
+      # Staff are signed out after this much inactivity.
+      timeout: ${APP_SESSION_TIMEOUT:30m}
+      cookie:
+        name: TELCO_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${APP_SECURE_COOKIES:false}
+
 app:
   max-request-bytes: 1048576
   demo-data:
-    # Fills an empty database with generated Singapore demo data on startup.
+    # Fills an empty database with generated Singapore demo data on startup,
+    # and creates one demo staff account per role with this password.
     enabled: ${APP_DEMO_DATA:true}
     seed: 42
+    staff-password: ${APP_DEMO_PASSWORD:Demo-Pass-2026}
+  security:
+    # Set APP_SECURE_COOKIES=true when the portal is served over HTTPS.
+    secure-cookies: ${APP_SECURE_COOKIES:false}
+    max-failed-logins: 5
+    lockout-minutes: 15
+    # Creates an "admin" account with this password when no staff accounts exist and demo data is off.
+    bootstrap-admin-password: ${APP_ADMIN_PASSWORD:}
 
 management:
   endpoints:

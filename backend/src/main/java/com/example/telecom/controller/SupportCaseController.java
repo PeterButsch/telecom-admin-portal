@@ -4,6 +4,9 @@ import com.example.telecom.api.PageResponse;
 import com.example.telecom.api.Paging;
 import com.example.telecom.api.SearchTerms;
 import com.example.telecom.api.Times;
+import com.example.telecom.audit.AuditAction;
+import com.example.telecom.audit.AuditService;
+import com.example.telecom.audit.ChangeSet;
 import com.example.telecom.error.ConflictException;
 import com.example.telecom.error.FieldValidationException;
 import com.example.telecom.error.NotFoundException;
@@ -51,12 +54,14 @@ public class SupportCaseController {
     private final SupportCaseRepository repository;
     private final CustomerRepository customerRepository;
     private final MobileLineRepository lineRepository;
+    private final AuditService audit;
 
     public SupportCaseController(SupportCaseRepository repository, CustomerRepository customerRepository,
-            MobileLineRepository lineRepository) {
+            MobileLineRepository lineRepository, AuditService audit) {
         this.repository = repository;
         this.customerRepository = customerRepository;
         this.lineRepository = lineRepository;
+        this.audit = audit;
     }
 
     /** {@code q} matches the case number or subject. */
@@ -107,6 +112,9 @@ public class SupportCaseController {
         supportCase.setCaseNumber("CS" + (1_000_000 + repository.findMaxId() + 1));
         SupportCase saved = repository.save(supportCase);
         LOG.info("Case created: id={}, number={}", saved.getId(), saved.getCaseNumber());
+        audit.record(AuditAction.CASE_CREATED, saved.getId(), "Opened " + saved.getPriority() + " "
+                + saved.getCategory() + " case " + saved.getCaseNumber() + " for customer "
+                + customer.getCustomerNumber());
         return CaseResponse.from(saved, now);
     }
 
@@ -123,24 +131,41 @@ public class SupportCaseController {
             throw new ConflictException("Case " + supportCase.getCaseNumber()
                     + " is closed and cannot be changed. Open a new case instead.");
         }
-        if (request.subject() != null) {
-            supportCase.setSubject(request.subject().trim());
-        }
-        if (request.description() != null) {
-            supportCase.setDescription(CustomerController.trimToNull(request.description()));
-        }
-        if (request.category() != null) {
-            supportCase.setCategory(request.category());
-        }
+        ChangeSet changes = applyDetails(supportCase, request);
         if (request.priority() != null && request.priority() != supportCase.getPriority()) {
+            changes.value("priority", supportCase.getPriority(), request.priority());
             supportCase.setPriority(request.priority());
             supportCase.setSlaDueAt(supportCase.getCreatedAt().plus(request.priority().slaHours(), ChronoUnit.HOURS));
         }
         Instant now = Times.now();
         if (request.status() != null) {
+            changes.value("status", supportCase.getStatus(), request.status());
             applyStatus(supportCase, request.status(), now);
         }
-        return CaseResponse.from(repository.save(supportCase), now);
+        SupportCase saved = repository.save(supportCase);
+        if (!changes.isEmpty()) {
+            audit.record(AuditAction.CASE_UPDATED, id,
+                    "Updated case " + saved.getCaseNumber() + ": " + changes.describe());
+        }
+        return CaseResponse.from(saved, now);
+    }
+
+    private static ChangeSet applyDetails(SupportCase supportCase, CaseUpdateRequest request) {
+        ChangeSet changes = new ChangeSet();
+        if (request.subject() != null) {
+            changes.field("subject", supportCase.getSubject(), request.subject().trim());
+            supportCase.setSubject(request.subject().trim());
+        }
+        if (request.description() != null) {
+            String description = CustomerController.trimToNull(request.description());
+            changes.field("description", supportCase.getDescription(), description);
+            supportCase.setDescription(description);
+        }
+        if (request.category() != null) {
+            changes.value("category", supportCase.getCategory(), request.category());
+            supportCase.setCategory(request.category());
+        }
+        return changes;
     }
 
     private static void applyStatus(SupportCase supportCase, SupportCase.Status status, Instant now) {

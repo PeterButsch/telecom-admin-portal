@@ -1,6 +1,9 @@
 package com.example.telecom.controller;
 
 import com.example.telecom.api.Times;
+import com.example.telecom.audit.AuditAction;
+import com.example.telecom.audit.AuditService;
+import com.example.telecom.audit.ChangeSet;
 import com.example.telecom.error.BadRequestException;
 import com.example.telecom.error.ConflictException;
 import com.example.telecom.error.NotFoundException;
@@ -47,10 +50,12 @@ public class PlanController {
 
     private final PlanRepository repository;
     private final MobileLineRepository lineRepository;
+    private final AuditService audit;
 
-    public PlanController(PlanRepository repository, MobileLineRepository lineRepository) {
+    public PlanController(PlanRepository repository, MobileLineRepository lineRepository, AuditService audit) {
         this.repository = repository;
         this.lineRepository = lineRepository;
+        this.audit = audit;
     }
 
     @GetMapping
@@ -88,6 +93,8 @@ public class PlanController {
         apply(plan, request);
         Plan saved = repository.save(plan);
         LOG.info("Plan created: id={}", saved.getId());
+        audit.record(AuditAction.PLAN_CREATED, saved.getId(), "Created plan " + saved.getCode() + " ("
+                + saved.getName() + ") at $" + CustomerController.toMoney(saved.getMonthlyPrice()) + "/month");
         return PlanResponse.from(saved, 0);
     }
 
@@ -102,25 +109,50 @@ public class PlanController {
         if (!plan.getCode().equalsIgnoreCase(request.code().trim())) {
             throw new BadRequestException("The plan code cannot change; create a new plan instead.");
         }
+        PlanSnapshot before = PlanSnapshot.of(plan);
         apply(plan, request);
         Plan saved = repository.save(plan);
         LOG.info("Plan updated: id={}", saved.getId());
+        ChangeSet changes = before.compareWith(saved);
+        if (!changes.isEmpty()) {
+            audit.record(AuditAction.PLAN_UPDATED, id, "Updated plan " + saved.getCode() + ": " + changes.describe());
+        }
         return PlanResponse.from(saved, liveLineCount(id));
     }
 
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<Void> deletePlan(@PathVariable Long id) {
-        if (!repository.existsById(id)) {
-            throw new NotFoundException("Plan " + id + " does not exist.");
-        }
+        Plan plan = findPlan(id);
         long lines = lineRepository.countByPlanId(id);
         if (lines > 0) {
             throw new ConflictException(
                     "Plan " + id + " is used by " + lines + " line(s). Mark it inactive instead of deleting it.");
         }
-        repository.deleteById(id);
+        repository.delete(plan);
+        audit.record(AuditAction.PLAN_DELETED, id, "Deleted plan " + plan.getCode());
         return ResponseEntity.noContent().build();
+    }
+
+    /** Plan fields before an update, to describe what changed. */
+    private record PlanSnapshot(String name, Plan.Brand brand, Plan.Category category, Plan.Segment segment,
+            BigDecimal monthlyPrice, Integer dataLimitGb, Integer minutesLimit, Integer smsLimit, int contractMonths,
+            String network, boolean active) {
+        static PlanSnapshot of(Plan p) {
+            return new PlanSnapshot(p.getName(), p.getBrand(), p.getCategory(), p.getSegment(), p.getMonthlyPrice(),
+                    p.getDataLimitGb(), p.getMinutesLimit(), p.getSmsLimit(), p.getContractMonths(), p.getNetwork(),
+                    p.isActive());
+        }
+
+        ChangeSet compareWith(Plan p) {
+            return new ChangeSet().value("name", name, p.getName()).value("brand", brand, p.getBrand())
+                    .value("category", category, p.getCategory()).value("segment", segment, p.getSegment())
+                    .value("monthly price", monthlyPrice, p.getMonthlyPrice())
+                    .value("data GB", dataLimitGb, p.getDataLimitGb())
+                    .value("minutes", minutesLimit, p.getMinutesLimit()).value("SMS", smsLimit, p.getSmsLimit())
+                    .value("contract months", contractMonths, p.getContractMonths())
+                    .value("network", network, p.getNetwork()).value("active", active, p.isActive());
+        }
     }
 
     private static void apply(Plan plan, PlanRequest request) {

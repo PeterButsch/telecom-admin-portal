@@ -17,8 +17,9 @@ import type { Plan } from "@/hooks/use-plans"
 
 interface PlansTableProps {
   plans: Plan[]
-  onEdit: (plan: Plan) => void
-  onDelete: (plan: Plan) => void
+  /** Leave out the handlers when the user may not change the catalogue. */
+  onEdit?: (plan: Plan) => void
+  onDelete?: (plan: Plan) => void
 }
 
 function formatLimit(limit: number | null, unit = "") {
@@ -26,6 +27,7 @@ function formatLimit(limit: number | null, unit = "") {
 }
 
 export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
+  const hasActions = Boolean(onEdit || onDelete)
   return (
     <Table>
       <TableHeader className="bg-background sticky top-0 z-10">
@@ -39,7 +41,7 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
           <TableHead className="text-right">Contract</TableHead>
           <TableHead className="text-right">Lines</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead className="w-[100px] text-right">Actions</TableHead>
+          {hasActions && <TableHead className="w-[100px] text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -69,26 +71,32 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
             <TableCell>
               <StatusBadge value={plan.is_active ? "ACTIVE" : "INACTIVE"} />
             </TableCell>
-            <TableCell className="text-right">
-              <div className="flex justify-end gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Edit ${plan.name}`}
-                  onClick={() => onEdit(plan)}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Delete ${plan.name}`}
-                  onClick={() => onDelete(plan)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </TableCell>
+            {hasActions && (
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-1">
+                  {onEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Edit ${plan.name}`}
+                      onClick={() => onEdit(plan)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete ${plan.name}`}
+                      onClick={() => onDelete(plan)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>

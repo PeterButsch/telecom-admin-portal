@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Plus, X } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -26,6 +27,8 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { options } from "@/lib/labels"
 
 export default function CustomersPage() {
+  const { can } = useAuth()
+  const canWrite = can("CUSTOMER_WRITE")
   const [search, setSearch] = useState("")
   const [type, setType] = useState<CustomerType | null>(null)
   const [status, setStatus] = useState<CustomerStatus | null>(null)
@@ -65,15 +68,17 @@ export default function CustomersPage() {
                 total={list.totalElements}
                 noun="customers"
               />
-              <Button
-                onClick={() => {
-                  setEditingCustomer(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Customer
-              </Button>
+              {canWrite && (
+                <Button
+                  onClick={() => {
+                    setEditingCustomer(null)
+                    setFormOpen(true)
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Customer
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-4">
@@ -129,11 +134,15 @@ export default function CustomersPage() {
           >
             <CustomersTable
               customers={list.customers}
-              onEdit={(customer) => {
-                setEditingCustomer(customer)
-                setFormOpen(true)
-              }}
-              onDelete={setCustomerToDelete}
+              onEdit={
+                canWrite
+                  ? (customer) => {
+                      setEditingCustomer(customer)
+                      setFormOpen(true)
+                    }
+                  : undefined
+              }
+              onDelete={can("CUSTOMER_DELETE") ? setCustomerToDelete : undefined}
             />
           </PagedListBody>
         </CardContent>

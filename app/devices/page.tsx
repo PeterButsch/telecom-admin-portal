@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Loader2, Plus, X } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/confirm-dialog"
@@ -31,6 +32,7 @@ function matches(device: Device, query: string) {
 }
 
 export default function DevicesPage() {
+  const canWrite = useAuth().can("DEVICE_WRITE")
   const { devices, loading, error, createDevice, updateDevice, deleteDevice } = useDevices()
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<DeviceStatus | null>(null)
@@ -63,15 +65,17 @@ export default function DevicesPage() {
                   ? "Loading..."
                   : `${shown.length.toLocaleString()} of ${devices.length.toLocaleString()} devices`}
               </span>
-              <Button
-                onClick={() => {
-                  setEditingDevice(null)
-                  setFormOpen(true)
-                }}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Device
-              </Button>
+              {canWrite && (
+                <Button
+                  onClick={() => {
+                    setEditingDevice(null)
+                    setFormOpen(true)
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Device
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-end gap-4">
@@ -118,11 +122,15 @@ export default function DevicesPage() {
             <div className="h-full overflow-auto">
               <DevicesTable
                 devices={shown}
-                onEdit={(device) => {
-                  setEditingDevice(device)
-                  setFormOpen(true)
-                }}
-                onDelete={setDeviceToDelete}
+                onEdit={
+                  canWrite
+                    ? (device) => {
+                        setEditingDevice(device)
+                        setFormOpen(true)
+                      }
+                    : undefined
+                }
+                onDelete={canWrite ? setDeviceToDelete : undefined}
               />
               {shown.length === 0 && (
                 <div className="text-muted-foreground py-8 text-center">

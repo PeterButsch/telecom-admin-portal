@@ -45,6 +45,7 @@ function problemResponse(status: number, detail: string) {
 
 describe("usePlans", () => {
   beforeEach(() => {
+    document.cookie = "XSRF-TOKEN=test-token; path=/"
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => jsonResponse([basic]))
@@ -53,6 +54,7 @@ describe("usePlans", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    document.cookie = "XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"
   })
 
   it("loads plans on mount and clears the loading flag", async () => {

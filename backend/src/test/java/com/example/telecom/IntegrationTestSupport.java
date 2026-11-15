@@ -1,19 +1,36 @@
 package com.example.telecom;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.example.telecom.config.RequestSizeLimitFilter;
+import com.example.telecom.repository.StaffUserRepository;
+import com.example.telecom.security.StaffPrincipal;
+import com.example.telecom.security.StaffRole;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.test.web.support.WebTestUtils;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -28,15 +45,22 @@ import org.springframework.web.context.WebApplicationContext;
  * 91234567 ACTIVE and line 2 81234567 TERMINATED</li>
  * <li>customer 2 Lion City Logistics Pte. Ltd. with account 2: line 3 98765432
  * ACTIVE</li>
+ * <li>one staff account per role, named after the role in lower case (for
+ * example care_agent), all with the password {@link #STAFF_PASSWORD}</li>
  * </ul>
+ * {@link #mockMvc} sends every request as the administrator with a valid CSRF
+ * token; {@link #anonymousMvc} sends requests as they arrive from a browser.
  */
 @SpringBootTest
 public abstract class IntegrationTestSupport {
 
     protected static final String FIXTURE_TIME = "2026-02-01 09:00:00.000";
     protected static final String ADA_NRIC = "S1234567D";
+    protected static final String STAFF_PASSWORD = "Test-Password-2026";
+    // A low BCrypt cost keeps the fixture fast; the application verifies hashes of any cost.
+    private static final String STAFF_PASSWORD_HASH = new BCryptPasswordEncoder(4).encode(STAFF_PASSWORD);
     private static final List<String> TABLES = List.of("usage_records", "support_cases", "devices", "line_add_ons",
-            "mobile_lines", "accounts", "customers", "promotions", "add_ons", "plans");
+            "mobile_lines", "accounts", "customers", "promotions", "add_ons", "plans", "staff_users");
 
     @Autowired
     protected WebApplicationContext context;
@@ -44,12 +68,33 @@ public abstract class IntegrationTestSupport {
     @Autowired
     protected JdbcTemplate jdbc;
 
+    @Autowired
+    protected StaffUserRepository staffUsers;
+
     protected MockMvc mockMvc;
+    protected MockMvc anonymousMvc;
+    private long auditBaseline;
 
     @BeforeEach
     void loadFixture() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).addFilters(context.getBean(RequestSizeLimitFilter.class))
-                .build();
+        String staff = "INSERT INTO staff_users (username, display_name, email, role, password_hash,"
+                + " password_changed_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        for (StaffRole role : StaffRole.values()) {
+            String username = username(role);
+            jdbc.update(staff, username, role.label(), username + "@staff.test", role.name(), STAFF_PASSWORD_HASH,
+                    FIXTURE_TIME, FIXTURE_TIME);
+        }
+        // csrf() in a test swaps the filter's token repository for a session-based test double; put the real
+        // cookie repository back so every test starts with the production CSRF setup.
+        WebTestUtils.setCsrfTokenRepository(new MockHttpServletRequest(context.getServletContext()),
+                context.getBean(CookieCsrfTokenRepository.class));
+        Long maxAudit = jdbc.queryForObject("SELECT COALESCE(MAX(id), 0) FROM audit_events", Long.class);
+        auditBaseline = maxAudit == null ? 0 : maxAudit;
+        anonymousMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(context.getBean(RequestSizeLimitFilter.class)).apply(springSecurity()).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(context.getBean(RequestSizeLimitFilter.class)).apply(springSecurity())
+                .defaultRequest(get("/").with(as(StaffRole.ADMIN)).with(csrf())).build();
         String plan = "INSERT INTO plans (id, code, name, brand, category, segment, monthly_price, data_limit_gb,"
                 + " contract_months, network, is_active, created_at) VALUES (?, ?, ?, ?, ?, 'CONSUMER', ?, 100, ?,"
                 + " '5G', 1, ?)";
@@ -81,6 +126,37 @@ public abstract class IntegrationTestSupport {
         for (String table : TABLES) {
             jdbc.update("DELETE FROM " + table);
         }
+    }
+
+    protected static String username(StaffRole role) {
+        return role.name().toLowerCase(Locale.ROOT);
+    }
+
+    /** Signs the request in as the fixture account for the role. */
+    protected RequestPostProcessor as(StaffRole role) {
+        StaffPrincipal principal = StaffPrincipal.of(staffUsers.findByUsernameIgnoreCase(username(role)).orElseThrow());
+        return authentication(principal.toAuthentication());
+    }
+
+    protected long staffId(StaffRole role) {
+        return staffUsers.findByUsernameIgnoreCase(username(role)).orElseThrow().getId();
+    }
+
+    /** Signs in through the login endpoint, as a browser would. */
+    protected ResultActions login(String username, String password) throws Exception {
+        return anonymousMvc.perform(post("/api/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"));
+    }
+
+    /** Signs in as the fixture account for the role and returns its session. */
+    protected MockHttpSession signIn(StaffRole role) throws Exception {
+        MvcResult result = login(username(role), STAFF_PASSWORD).andExpect(status().isOk()).andReturn();
+        return (MockHttpSession) result.getRequest().getSession(false);
+    }
+
+    /** Audit events written since the test started, oldest first. */
+    protected List<Map<String, Object>> auditEvents() {
+        return jdbc.queryForList("SELECT * FROM audit_events WHERE id > ? ORDER BY id", auditBaseline);
     }
 
     protected ResultActions postJson(String url, String body) throws Exception {

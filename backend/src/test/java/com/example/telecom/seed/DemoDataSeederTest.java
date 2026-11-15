@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.telecom.model.IdentityNumbers;
+import com.example.telecom.security.StaffRole;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -11,7 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-@SpringBootTest(properties = {"app.demo-data.enabled=true",
+@SpringBootTest(properties = {"app.demo-data.enabled=true", "app.demo-data.staff-password=Seed-Test-Pass-1",
         "spring.datasource.url=jdbc:sqlite:file:telecom-seed-test?mode=memory&cache=shared&foreign_keys=true"
                 + "&date_class=TEXT"})
 class DemoDataSeederTest {
@@ -74,6 +75,12 @@ class DemoDataSeederTest {
         long open = count("SELECT COUNT(*) FROM support_cases WHERE status NOT IN ('RESOLVED', 'CLOSED')");
         assertTrue(open >= 20, "open cases: " + open);
         assertTrue(count("SELECT COUNT(*) FROM support_cases WHERE resolved_at > sla_due_at") > 0);
+    }
+
+    @Test
+    void createsOneDemoStaffAccountPerRole() {
+        assertEquals(StaffRole.values().length, count("SELECT COUNT(DISTINCT role) FROM staff_users"));
+        assertEquals(0, count("SELECT COUNT(*) FROM staff_users WHERE password_hash NOT LIKE '$2%'"));
     }
 
     @Test

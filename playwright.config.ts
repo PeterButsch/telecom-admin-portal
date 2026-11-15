@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test"
+import { ADMIN_STATE } from "./e2e/support"
 
 const frontendUrl = process.env.FRONTEND_URL ?? "http://localhost:3000"
 const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8080"
@@ -22,8 +23,14 @@ export default defineConfig({
   },
   projects: [
     {
+      name: "setup",
+      testMatch: /auth\.setup\.ts/,
+    },
+    {
+      // Tests run signed in as the demo administrator unless they choose another account.
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop Chrome"], storageState: ADMIN_STATE },
+      dependencies: ["setup"],
     },
   ],
   webServer: [

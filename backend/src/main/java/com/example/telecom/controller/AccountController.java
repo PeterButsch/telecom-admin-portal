@@ -1,6 +1,8 @@
 package com.example.telecom.controller;
 
 import com.example.telecom.api.Times;
+import com.example.telecom.audit.AuditAction;
+import com.example.telecom.audit.AuditService;
 import com.example.telecom.error.BadRequestException;
 import com.example.telecom.error.NotFoundException;
 import com.example.telecom.model.Account;
@@ -16,6 +18,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,13 +44,15 @@ public class AccountController {
     private final AccountRepository repository;
     private final CustomerRepository customerRepository;
     private final MobileLineRepository lineRepository;
+    private final AuditService audit;
     private final SecureRandom random = new SecureRandom();
 
     public AccountController(AccountRepository repository, CustomerRepository customerRepository,
-            MobileLineRepository lineRepository) {
+            MobileLineRepository lineRepository, AuditService audit) {
         this.repository = repository;
         this.customerRepository = customerRepository;
         this.lineRepository = lineRepository;
+        this.audit = audit;
     }
 
     @GetMapping
@@ -87,7 +92,10 @@ public class AccountController {
         account.setBillCycleDay(prepaid ? null : request.billCycleDay() != null ? request.billCycleDay() : 1);
         account.setCreditLimit(prepaid ? null : CONSUMER_CREDIT_LIMIT);
         account.setAccountNumber(newAccountNumber());
-        return AccountResponse.from(repository.save(account), 0);
+        Account saved = repository.save(account);
+        audit.record(AuditAction.ACCOUNT_CREATED, saved.getId(), "Opened " + saved.getType().name().toLowerCase(Locale.ROOT) + " account " + saved.getAccountNumber() + " for customer "
+                + customer.getCustomerNumber());
+        return AccountResponse.from(saved, 0);
     }
 
     private String newAccountNumber() {

@@ -19,6 +19,12 @@ const SPECIAL_LABELS: Record<string, string> = {
   SCAM_REPORT: "Scam report",
   SIM_REPLACEMENT: "SIM replacement",
   APP: "App",
+  CARE_AGENT: "Care Agent",
+  CARE_TEAM_LEAD: "Care Team Lead",
+  FRAUD_ANALYST: "Fraud & Compliance Analyst",
+  NETWORK_OPS: "Network Operations",
+  PRODUCT_MANAGER: "Product Manager",
+  ADMIN: "Administrator",
 }
 
 /** Turns an API enum value such as "PENDING_CUSTOMER" into a readable label ("Pending customer"). */
