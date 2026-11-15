@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch, errorMessage } from "@/lib/api"
 
 export interface Plan {
   id: number
@@ -32,52 +33,34 @@ export function usePlans() {
   const fetchPlans = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/plans")
-      if (!res.ok) throw new Error("Failed to fetch plans")
-      const data = await res.json()
-      setPlans(data)
+      setPlans(await apiFetch<Plan[]>("/api/plans"))
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error")
+      setError(errorMessage(e))
     } finally {
       setLoading(false)
     }
   }, [])
 
   const createPlan = useCallback(async (plan: PlanCreate) => {
-    const res = await fetch("/api/plans", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(plan),
-    })
-    if (!res.ok) throw new Error("Failed to create plan")
-    const newPlan = await res.json()
-    setPlans((prev) => [...prev, newPlan])
-    return newPlan
+    const created = await apiFetch<Plan>("/api/plans", { method: "POST", body: plan })
+    setPlans((prev) => [...prev, created])
+    return created
   }, [])
 
   const updatePlan = useCallback(async (id: number, plan: PlanUpdate) => {
-    const res = await fetch(`/api/plans/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(plan),
-    })
-    if (!res.ok) throw new Error("Failed to update plan")
-    const updated = await res.json()
+    const updated = await apiFetch<Plan>(`/api/plans/${id}`, { method: "PUT", body: plan })
     setPlans((prev) => prev.map((p) => (p.id === id ? updated : p)))
     return updated
   }, [])
 
   const deletePlan = useCallback(async (id: number) => {
-    const res = await fetch(`/api/plans/${id}`, {
-      method: "DELETE",
-    })
-    if (!res.ok) throw new Error("Failed to delete plan")
+    await apiFetch<void>(`/api/plans/${id}`, { method: "DELETE" })
     setPlans((prev) => prev.filter((p) => p.id !== id))
   }, [])
 
   useEffect(() => {
-    fetchPlans()
+    void fetchPlans()
   }, [fetchPlans])
 
   return {

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useCallback } from "react"
+import { usePagedList } from "@/hooks/use-paged-list"
 
 export interface UsageRecord {
   id: number
@@ -19,23 +20,7 @@ export interface UsageFilters {
   dateTo?: string | null
 }
 
-interface PagedResponse {
-  content: UsageRecord[]
-  page: number
-  totalPages: number
-  totalElements: number
-  hasNext: boolean
-}
-
 export function useUsage(filters: UsageFilters = {}) {
-  const [records, setRecords] = useState<UsageRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [hasNext, setHasNext] = useState(false)
-  const [totalElements, setTotalElements] = useState(0)
-  const pageRef = useRef(0)
-
   const buildUrl = useCallback(
     (pageNum: number) => {
       const params = new URLSearchParams()
@@ -50,58 +35,17 @@ export function useUsage(filters: UsageFilters = {}) {
     [filters.type, filters.customerId, filters.dateFrom, filters.dateTo]
   )
 
-  const fetchRecords = useCallback(
-    async (reset = true) => {
-      try {
-        if (reset) {
-          setLoading(true)
-          pageRef.current = 0
-        } else {
-          setLoadingMore(true)
-          pageRef.current += 1
-        }
-
-        const res = await fetch(buildUrl(pageRef.current))
-        if (!res.ok) throw new Error("Failed to fetch usage records")
-        const data: PagedResponse = await res.json()
-
-        if (reset) {
-          setRecords(data.content || [])
-        } else {
-          setRecords((prev) => [...prev, ...(data.content || [])])
-        }
-
-        setHasNext(data.hasNext ?? false)
-        setTotalElements(data.totalElements ?? 0)
-        setError(null)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Unknown error")
-      } finally {
-        setLoading(false)
-        setLoadingMore(false)
-      }
-    },
-    [buildUrl]
-  )
-
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasNext) {
-      fetchRecords(false)
-    }
-  }, [fetchRecords, loadingMore, hasNext])
-
-  useEffect(() => {
-    fetchRecords(true)
-  }, [fetchRecords])
+  const list = usePagedList<UsageRecord>(buildUrl)
 
   return {
-    records,
-    loading,
-    loadingMore,
-    error,
-    hasNext,
-    totalElements,
-    loadMore,
-    refresh: () => fetchRecords(true),
+    records: list.items,
+    loading: list.loading,
+    loadingMore: list.loadingMore,
+    error: list.error,
+    loadMoreError: list.loadMoreError,
+    hasNext: list.hasNext,
+    totalElements: list.totalElements,
+    loadMore: list.loadMore,
+    refresh: list.refresh,
   }
 }

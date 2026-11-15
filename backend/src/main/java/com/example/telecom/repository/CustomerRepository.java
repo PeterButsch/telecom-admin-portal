@@ -11,6 +11,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     long countByStatus(Customer.Status status);
 
+    boolean existsByEmailIgnoreCase(String email);
+
+    long countByPlanId(Long planId);
+
     @Query("SELECT c.plan.name, COUNT(c) FROM Customer c WHERE c.status = 'ACTIVE' GROUP BY c.plan.name")
     List<Object[]> countByPlanName();
 

@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch, errorMessage } from "@/lib/api"
+
+export type CustomerStatus = "ACTIVE" | "SUSPENDED" | "CANCELLED"
 
 export interface Customer {
   id: number
@@ -10,7 +13,7 @@ export interface Customer {
   phone: string
   plan_id: number | null
   plan_name: string | null
-  status: "ACTIVE" | "SUSPENDED" | "CANCELLED"
+  status: CustomerStatus
   balance: number
   activated_at: string | null
   created_at: string | null
@@ -25,9 +28,7 @@ export interface CustomerCreate {
   balance?: number
 }
 
-export interface CustomerUpdate extends CustomerCreate {
-  status?: string
-}
+export type CustomerUpdate = Partial<CustomerCreate> & { status?: CustomerStatus }
 
 export function useCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -37,52 +38,37 @@ export function useCustomers() {
   const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/customers")
-      if (!res.ok) throw new Error("Failed to fetch customers")
-      const data = await res.json()
-      setCustomers(data)
+      setCustomers(await apiFetch<Customer[]>("/api/customers"))
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error")
+      setError(errorMessage(e))
     } finally {
       setLoading(false)
     }
   }, [])
 
   const createCustomer = useCallback(async (customer: CustomerCreate) => {
-    const res = await fetch("/api/customers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(customer),
-    })
-    if (!res.ok) throw new Error("Failed to create customer")
-    const newCustomer = await res.json()
-    setCustomers((prev) => [...prev, newCustomer])
-    return newCustomer
+    const created = await apiFetch<Customer>("/api/customers", { method: "POST", body: customer })
+    setCustomers((prev) => [...prev, created])
+    return created
   }, [])
 
   const updateCustomer = useCallback(async (id: number, customer: CustomerUpdate) => {
-    const res = await fetch(`/api/customers/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(customer),
+    const updated = await apiFetch<Customer>(`/api/customers/${id}`, {
+      method: "PATCH",
+      body: customer,
     })
-    if (!res.ok) throw new Error("Failed to update customer")
-    const updated = await res.json()
     setCustomers((prev) => prev.map((c) => (c.id === id ? updated : c)))
     return updated
   }, [])
 
   const deleteCustomer = useCallback(async (id: number) => {
-    const res = await fetch(`/api/customers/${id}`, {
-      method: "DELETE",
-    })
-    if (!res.ok) throw new Error("Failed to delete customer")
+    await apiFetch<void>(`/api/customers/${id}`, { method: "DELETE" })
     setCustomers((prev) => prev.filter((c) => c.id !== id))
   }, [])
 
   useEffect(() => {
-    fetchCustomers()
+    void fetchCustomers()
   }, [fetchCustomers])
 
   return {

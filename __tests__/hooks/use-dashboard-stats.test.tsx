@@ -21,10 +21,22 @@ function stubFetch(overrides: { failStats?: boolean } = {}) {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (url: string) => {
-      const ok = !(overrides.failStats && url === "/api/dashboard/stats")
-      return { ok, json: async () => payloads[url] } as Response
+      if (overrides.failStats && url === "/api/dashboard/stats") {
+        return new Response(JSON.stringify({ status: 500, detail: "Stats query failed" }), {
+          status: 500,
+          headers: { "Content-Type": "application/problem+json" },
+        })
+      }
+      return new Response(JSON.stringify(payloads[url]), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
     })
   )
+}
+
+function requestedUrls() {
+  return vi.mocked(fetch).mock.calls.map(([url]) => url)
 }
 
 describe("useDashboardStats", () => {
@@ -39,7 +51,7 @@ describe("useDashboardStats", () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(5)
-    Object.keys(payloads).forEach((url) => expect(fetch).toHaveBeenCalledWith(url))
+    expect(requestedUrls().sort()).toEqual(Object.keys(payloads).sort())
   })
 
   it("populates every slice of dashboard state", async () => {
@@ -62,7 +74,7 @@ describe("useDashboardStats", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    expect(result.current.error).toBe("Failed to fetch stats")
+    expect(result.current.error).toBe("Could not load the dashboard: Stats query failed")
     expect(result.current.stats).toBeNull()
   })
 

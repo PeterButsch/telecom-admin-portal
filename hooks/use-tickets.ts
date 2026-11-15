@@ -1,9 +1,14 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useCallback } from "react"
+import { apiFetch } from "@/lib/api"
 import { createLogger } from "@/lib/logger"
+import { usePagedList } from "@/hooks/use-paged-list"
 
 const log = createLogger("useTickets")
+
+export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT"
+export type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
 
 export interface Ticket {
   id: number
@@ -11,15 +16,15 @@ export interface Ticket {
   customer_name: string
   subject: string
   description: string | null
-  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
-  status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
+  priority: TicketPriority
+  status: TicketStatus
   created_at: string | null
   resolved_at: string | null
 }
 
 export interface TicketFilters {
-  priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null
-  status?: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED" | null
+  priority?: TicketPriority | null
+  status?: TicketStatus | null
   customerId?: number | null
 }
 
@@ -31,30 +36,13 @@ export interface TicketCreate {
 }
 
 export interface TicketUpdate {
-  customerId?: number
-  subject: string
+  subject?: string
   description?: string
   priority?: string
   status?: string
 }
 
-interface PagedResponse {
-  content: Ticket[]
-  page: number
-  totalPages: number
-  totalElements: number
-  hasNext: boolean
-}
-
 export function useTickets(filters: TicketFilters = {}) {
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [hasNext, setHasNext] = useState(false)
-  const [totalElements, setTotalElements] = useState(0)
-  const pageRef = useRef(0)
-
   const buildUrl = useCallback(
     (pageNum: number) => {
       const params = new URLSearchParams()
@@ -68,116 +56,52 @@ export function useTickets(filters: TicketFilters = {}) {
     [filters.priority, filters.status, filters.customerId]
   )
 
-  const fetchTickets = useCallback(
-    async (reset = true) => {
-      try {
-        if (reset) {
-          setLoading(true)
-          pageRef.current = 0
-        } else {
-          setLoadingMore(true)
-          pageRef.current += 1
-        }
-
-        log.info({ page: pageRef.current, filters }, "Fetching tickets")
-        const res = await fetch(buildUrl(pageRef.current))
-        if (!res.ok) throw new Error("Failed to fetch tickets")
-        const data: PagedResponse = await res.json()
-
-        if (reset) {
-          setTickets(data.content || [])
-        } else {
-          setTickets((prev) => [...prev, ...(data.content || [])])
-        }
-
-        setHasNext(data.hasNext ?? false)
-        setTotalElements(data.totalElements ?? 0)
-        setError(null)
-        log.debug(
-          { count: data.content?.length, totalElements: data.totalElements },
-          "Tickets fetched"
-        )
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Unknown error"
-        log.error({ error: e }, "Failed to fetch tickets")
-        setError(message)
-      } finally {
-        setLoading(false)
-        setLoadingMore(false)
-      }
-    },
-    [buildUrl, filters]
-  )
-
-  const loadMore = useCallback(() => {
-    if (!loadingMore && hasNext) {
-      fetchTickets(false)
-    }
-  }, [fetchTickets, loadingMore, hasNext])
+  const list = usePagedList<Ticket>(buildUrl)
+  const { setItems, refresh } = list
 
   const createTicket = useCallback(
     async (ticket: TicketCreate) => {
       log.info({ customerId: ticket.customerId }, "Creating ticket")
-      const res = await fetch("/api/tickets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ticket),
-      })
-      if (!res.ok) {
-        log.error({ status: res.status }, "Failed to create ticket")
-        throw new Error("Failed to create ticket")
-      }
-      const newTicket = await res.json()
-      log.info({ ticketId: newTicket.id }, "Ticket created")
-      fetchTickets(true)
-      return newTicket
+      const created = await apiFetch<Ticket>("/api/tickets", { method: "POST", body: ticket })
+      log.info({ ticketId: created.id }, "Ticket created")
+      void refresh()
+      return created
     },
-    [fetchTickets]
+    [refresh]
   )
 
-  const updateTicket = useCallback(async (id: number, ticket: TicketUpdate) => {
-    log.info({ ticketId: id }, "Updating ticket")
-    const res = await fetch(`/api/tickets/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(ticket),
-    })
-    if (!res.ok) {
-      log.error({ ticketId: id, status: res.status }, "Failed to update ticket")
-      throw new Error("Failed to update ticket")
-    }
-    const updated = await res.json()
-    log.info({ ticketId: id, status: updated.status }, "Ticket updated")
-    setTickets((prev) => prev.map((t) => (t.id === id ? updated : t)))
-    return updated
-  }, [])
+  const updateTicket = useCallback(
+    async (id: number, ticket: TicketUpdate) => {
+      log.info({ ticketId: id }, "Updating ticket")
+      const updated = await apiFetch<Ticket>(`/api/tickets/${id}`, {
+        method: "PATCH",
+        body: ticket,
+      })
+      setItems((prev) => prev.map((t) => (t.id === id ? updated : t)))
+      return updated
+    },
+    [setItems]
+  )
 
-  const deleteTicket = useCallback(async (id: number) => {
-    log.info({ ticketId: id }, "Deleting ticket")
-    const res = await fetch(`/api/tickets/${id}`, {
-      method: "DELETE",
-    })
-    if (!res.ok) {
-      log.error({ ticketId: id, status: res.status }, "Failed to delete ticket")
-      throw new Error("Failed to delete ticket")
-    }
-    log.info({ ticketId: id }, "Ticket deleted")
-    setTickets((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
-  useEffect(() => {
-    fetchTickets(true)
-  }, [fetchTickets])
+  const deleteTicket = useCallback(
+    async (id: number) => {
+      log.info({ ticketId: id }, "Deleting ticket")
+      await apiFetch<void>(`/api/tickets/${id}`, { method: "DELETE" })
+      setItems((prev) => prev.filter((t) => t.id !== id))
+    },
+    [setItems]
+  )
 
   return {
-    tickets,
-    loading,
-    loadingMore,
-    error,
-    hasNext,
-    totalElements,
-    loadMore,
-    refresh: () => fetchTickets(true),
+    tickets: list.items,
+    loading: list.loading,
+    loadingMore: list.loadingMore,
+    error: list.error,
+    loadMoreError: list.loadMoreError,
+    hasNext: list.hasNext,
+    totalElements: list.totalElements,
+    loadMore: list.loadMore,
+    refresh,
     createTicket,
     updateTicket,
     deleteTicket,

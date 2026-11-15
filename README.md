@@ -122,15 +122,26 @@ pnpm lint
 
 ## API Endpoints
 
-| Endpoint           | Methods                | Description          |
-| ------------------ | ---------------------- | -------------------- |
-| `/api/health`      | GET                    | Health check         |
-| `/api/customers`   | GET, POST, PUT, DELETE | Customer CRUD        |
-| `/api/plans`       | GET, POST, PUT, DELETE | Plan CRUD            |
-| `/api/devices`     | GET, POST, PUT, DELETE | Device CRUD          |
-| `/api/usage`       | GET                    | Usage records        |
-| `/api/tickets`     | GET, POST, PUT, DELETE | Ticket CRUD          |
-| `/api/dashboard/*` | GET                    | Dashboard statistics |
+| Endpoint           | Methods                  | Description                                      |
+| ------------------ | ------------------------ | ------------------------------------------------ |
+| `/api/health`      | GET                      | Health check (returns 503 if the database fails) |
+| `/api/customers`   | GET, POST, PATCH, DELETE | Customer CRUD                                    |
+| `/api/plans`       | GET, POST, PUT, DELETE   | Plan CRUD                                        |
+| `/api/devices`     | GET, POST, PATCH, DELETE | Device CRUD                                      |
+| `/api/usage`       | GET                      | Usage records                                    |
+| `/api/tickets`     | GET, POST, PATCH, DELETE | Ticket CRUD                                      |
+| `/api/dashboard/*` | GET                      | Dashboard statistics                             |
+
+`PATCH` updates only the fields you send. Errors use the RFC 9457 problem format
+(`application/problem+json`) with a readable `detail`, and validation failures list
+the invalid fields under `errors`.
+
+### Configuration
+
+| Setting                 | Default   | Purpose                                  |
+| ----------------------- | --------- | ---------------------------------------- |
+| `APP_DB_PATH`           | `app.db`  | SQLite database file used by the backend |
+| `app.max-request-bytes` | `1048576` | Request bodies above this size get a 413 |
 
 ## API Documentation
 

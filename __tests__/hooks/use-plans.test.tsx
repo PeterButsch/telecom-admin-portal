@@ -12,13 +12,26 @@ const basic: Plan = {
   is_active: true,
 }
 
-function jsonResponse(body: unknown, ok = true) {
-  return { ok, json: async () => body } as Response
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  })
+}
+
+function problemResponse(status: number, detail: string) {
+  return new Response(JSON.stringify({ title: "Error", status, detail }), {
+    status,
+    headers: { "Content-Type": "application/problem+json" },
+  })
 }
 
 describe("usePlans", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([basic])))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse([basic]))
+    )
   })
 
   afterEach(() => {
@@ -31,18 +44,21 @@ describe("usePlans", () => {
     expect(result.current.loading).toBe(true)
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    expect(fetch).toHaveBeenCalledWith("/api/plans")
+    expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/plans")
     expect(result.current.plans).toEqual([basic])
     expect(result.current.error).toBeNull()
   })
 
-  it("surfaces an error message when the request fails", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(null, false)))
+  it("surfaces the server's error message when the request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => problemResponse(503, "Database unavailable"))
+    )
 
     const { result } = renderHook(() => usePlans())
 
     await waitFor(() => expect(result.current.loading).toBe(false))
-    expect(result.current.error).toBe("Failed to fetch plans")
+    expect(result.current.error).toBe("Database unavailable")
     expect(result.current.plans).toEqual([])
   })
 
@@ -51,12 +67,16 @@ describe("usePlans", () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     const created = { ...basic, id: 2, name: "Student" }
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(created))
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(created, 201))
 
     await act(async () => {
       await result.current.createPlan({ name: "Student", monthlyPrice: 15.5 })
     })
 
+    const [url, init] = vi.mocked(fetch).mock.calls[1]
+    expect(url).toBe("/api/plans")
+    expect(init?.method).toBe("POST")
+    expect(JSON.parse(init?.body as string)).toEqual({ name: "Student", monthlyPrice: 15.5 })
     expect(result.current.plans.map((p) => p.name)).toEqual(["Basic", "Student"])
   })
 
@@ -78,7 +98,7 @@ describe("usePlans", () => {
     const { result } = renderHook(() => usePlans())
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(null))
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 204 }))
 
     await act(async () => {
       await result.current.deletePlan(1)
@@ -87,13 +107,13 @@ describe("usePlans", () => {
     expect(result.current.plans).toEqual([])
   })
 
-  it("throws and leaves state untouched when a delete fails", async () => {
+  it("throws the conflict reason and leaves state untouched when a delete fails", async () => {
     const { result } = renderHook(() => usePlans())
     await waitFor(() => expect(result.current.loading).toBe(false))
 
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(null, false))
+    vi.mocked(fetch).mockResolvedValueOnce(problemResponse(409, "Plan 1 is used by 2 customer(s)."))
 
-    await expect(result.current.deletePlan(1)).rejects.toThrow("Failed to delete plan")
+    await expect(result.current.deletePlan(1)).rejects.toThrow("Plan 1 is used by 2 customer(s).")
     expect(result.current.plans).toEqual([basic])
   })
 })

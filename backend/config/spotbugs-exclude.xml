@@ -39,6 +39,13 @@
         <Bug pattern="CRLF_INJECTION_LOGS"/>
     </Match>
 
+    <!-- Constructor injection stores Spring-managed beans (for example JdbcTemplate); they are shared by design. -->
+    <Match>
+        <Package name="~com\.example\.telecom\..*"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
     <!-- Allow Spring's @Autowired injection patterns -->
     <Match>
         <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>

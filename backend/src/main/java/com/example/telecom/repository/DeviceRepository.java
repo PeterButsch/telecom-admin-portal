@@ -5,8 +5,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface DeviceRepository extends JpaRepository<Device, Long> {
+    Optional<Device> findByImei(String imei);
+
+    Optional<Device> findBySimNumber(String simNumber);
+
+    boolean existsByCustomerId(Long customerId);
+
     List<Device> findByStatus(Device.Status status);
 
     long countByStatus(Device.Status status);

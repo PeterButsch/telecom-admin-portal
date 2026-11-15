@@ -23,18 +23,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Plus, X, Loader2 } from "lucide-react"
 import { HealthStatus } from "@/components/health-status"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { TicketsTable } from "@/components/tickets-table"
 import { TicketFormDialog } from "@/components/ticket-form-dialog"
 import {
@@ -56,6 +47,7 @@ export default function TicketsPage() {
     hasNext,
     totalElements,
     loadMore,
+    loadMoreError,
     createTicket,
     updateTicket,
     deleteTicket,
@@ -95,7 +87,6 @@ export default function TicketsPage() {
   const handleDeleteConfirm = async () => {
     if (ticketToDelete) {
       await deleteTicket(ticketToDelete.id)
-      setDeleteDialogOpen(false)
       setTicketToDelete(null)
     }
   }
@@ -241,6 +232,14 @@ export default function TicketsPage() {
                       Loading more...
                     </div>
                   )}
+                  {loadMoreError && (
+                    <div className="flex items-center justify-center gap-2 py-4 text-sm text-red-500">
+                      {loadMoreError}
+                      <Button variant="outline" size="sm" onClick={loadMore}>
+                        Retry
+                      </Button>
+                    </div>
+                  )}
                   {!hasNext && tickets.length > 0 && (
                     <div className="text-muted-foreground py-4 text-center text-sm">
                       End of results
@@ -259,21 +258,15 @@ export default function TicketsPage() {
           onSubmit={handleFormSubmit}
         />
 
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Ticket</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete &quot;{ticketToDelete?.subject}&quot;? This action
-                cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Delete Ticket"
+          description={
+            <>Delete &quot;{ticketToDelete?.subject}&quot;? This action cannot be undone.</>
+          }
+          onConfirm={handleDeleteConfirm}
+        />
       </SidebarInset>
     </SidebarProvider>
   )

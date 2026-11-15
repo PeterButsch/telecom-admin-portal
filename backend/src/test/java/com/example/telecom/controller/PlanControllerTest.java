@@ -1,11 +1,12 @@
 package com.example.telecom.controller;
 
+import com.example.telecom.error.GlobalExceptionHandler;
 import com.example.telecom.model.Plan;
+import com.example.telecom.repository.CustomerRepository;
 import com.example.telecom.repository.PlanRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -30,17 +31,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PlanControllerTest {
 
     private final PlanRepository repository = mock(PlanRepository.class);
+    private final CustomerRepository customerRepository = mock(CustomerRepository.class);
 
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new PlanController(repository)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new PlanController(repository, customerRepository))
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     @Test
     void getAllPlansReturnsSnakeCasePayload() throws Exception {
-        when(repository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(plan(1L, "Basic", "20.00"))));
+        when(repository.findAll(any(Sort.class))).thenReturn(List.of(plan(1L, "Basic", "20.00")));
 
         mockMvc.perform(get("/api/plans")).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(1)).andExpect(jsonPath("$[0].name").value("Basic"))
@@ -108,6 +111,26 @@ class PlanControllerTest {
         mockMvc.perform(delete("/api/plans/4")).andExpect(status().isNoContent());
 
         verify(repository).deleteById(4L);
+    }
+
+    @Test
+    void deletePlanIsRefusedWhileCustomersUseIt() throws Exception {
+        when(repository.existsById(4L)).thenReturn(true);
+        when(customerRepository.countByPlanId(4L)).thenReturn(3L);
+
+        mockMvc.perform(delete("/api/plans/4")).andExpect(status().isConflict()).andExpect(jsonPath("$.detail")
+                .value("Plan 4 is used by 3 customer(s). Mark it inactive instead of deleting it."));
+
+        verify(repository, never()).deleteById(anyLong());
+    }
+
+    @Test
+    void createPlanRejectsANegativePrice() throws Exception {
+        mockMvc.perform(post("/api/plans").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Bad\",\"monthlyPrice\":-1}")).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.monthlyPrice").exists());
+
+        verify(repository, never()).save(any(Plan.class));
     }
 
     @Test

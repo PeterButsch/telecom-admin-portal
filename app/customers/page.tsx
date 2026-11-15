@@ -14,18 +14,9 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Plus } from "lucide-react"
 import { HealthStatus } from "@/components/health-status"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { CustomersTable } from "@/components/customers-table"
 import { CustomerFormDialog } from "@/components/customer-form-dialog"
 import {
@@ -64,7 +55,6 @@ export default function CustomersPage() {
   const handleDeleteConfirm = async () => {
     if (customerToDelete) {
       await deleteCustomer(customerToDelete.id)
-      setDeleteDialogOpen(false)
       setCustomerToDelete(null)
     }
   }
@@ -136,21 +126,19 @@ export default function CustomersPage() {
           onSubmit={handleFormSubmit}
         />
 
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Customer</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete {customerToDelete?.first_name}{" "}
-                {customerToDelete?.last_name}? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Delete Customer"
+          description={
+            <>
+              Delete {customerToDelete?.first_name} {customerToDelete?.last_name}? Customers with
+              devices, tickets or usage history cannot be deleted; set their status to Cancelled
+              instead.
+            </>
+          }
+          onConfirm={handleDeleteConfirm}
+        />
       </SidebarInset>
     </SidebarProvider>
   )

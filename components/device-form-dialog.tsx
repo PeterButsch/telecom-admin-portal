@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { FormError } from "@/components/form-error"
+import { errorMessage } from "@/lib/api"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -44,10 +46,12 @@ function DeviceForm({
   const [customerId, setCustomerId] = useState(device?.customer_id?.toString() ?? "")
   const [status, setStatus] = useState(device?.status ?? "AVAILABLE")
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
+    setError(null)
     try {
       const data: DeviceCreate | DeviceUpdate = {
         imei,
@@ -58,6 +62,8 @@ function DeviceForm({
       }
       await onSubmit(data)
       onCancel()
+    } catch (err) {
+      setError(errorMessage(err))
     } finally {
       setSubmitting(false)
     }
@@ -134,6 +140,7 @@ function DeviceForm({
           </div>
         )}
       </div>
+      <FormError message={error} />
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel

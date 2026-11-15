@@ -2,13 +2,24 @@ spring:
   application:
     name: telecom-backend
   datasource:
-    url: "jdbc:sqlite::memory:"
+    url: "jdbc:sqlite:file:telecom-test?mode=memory&cache=shared&foreign_keys=true&date_class=TEXT"
     driver-class-name: org.sqlite.JDBC
+    hikari:
+      # Every connection to an in-memory SQLite database sees its own data unless they share one connection.
+      maximum-pool-size: 1
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
+    open-in-view: false
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none
     show-sql: false
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+app:
+  max-request-bytes: 4096
 
 management:
   endpoints:

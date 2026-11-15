@@ -14,18 +14,9 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Plus } from "lucide-react"
 import { HealthStatus } from "@/components/health-status"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { PlansTable } from "@/components/plans-table"
 import { PlanFormDialog } from "@/components/plan-form-dialog"
 import { usePlans, type Plan, type PlanCreate, type PlanUpdate } from "@/hooks/use-plans"
@@ -56,7 +47,6 @@ export default function PlansPage() {
   const handleDeleteConfirm = async () => {
     if (planToDelete) {
       await deletePlan(planToDelete.id)
-      setDeleteDialogOpen(false)
       setPlanToDelete(null)
     }
   }
@@ -123,21 +113,18 @@ export default function PlansPage() {
           onSubmit={handleFormSubmit}
         />
 
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Plan</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete &quot;{planToDelete?.name}&quot;? This action cannot
-                be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Delete Plan"
+          description={
+            <>
+              Delete &quot;{planToDelete?.name}&quot;? Plans that customers still use cannot be
+              deleted; mark them inactive instead.
+            </>
+          }
+          onConfirm={handleDeleteConfirm}
+        />
       </SidebarInset>
     </SidebarProvider>
   )

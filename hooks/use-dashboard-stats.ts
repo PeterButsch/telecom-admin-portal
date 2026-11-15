@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch, errorMessage } from "@/lib/api"
 
 export interface DashboardStats {
   active_customers: number
@@ -31,32 +32,29 @@ export function useDashboardStats() {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true)
-      const [statsRes, customersPlanRes, devicesStatusRes, ticketsStatusRes, revenueRes] =
-        await Promise.all([
-          fetch("/api/dashboard/stats"),
-          fetch("/api/dashboard/customers-by-plan"),
-          fetch("/api/dashboard/devices-by-status"),
-          fetch("/api/dashboard/tickets-by-status"),
-          fetch("/api/dashboard/revenue-by-plan"),
-        ])
+      const [statsData, customersPlan, devicesStatus, ticketsStatus, revenue] = await Promise.all([
+        apiFetch<DashboardStats>("/api/dashboard/stats"),
+        apiFetch<ChartData[]>("/api/dashboard/customers-by-plan"),
+        apiFetch<ChartData[]>("/api/dashboard/devices-by-status"),
+        apiFetch<ChartData[]>("/api/dashboard/tickets-by-status"),
+        apiFetch<RevenueData[]>("/api/dashboard/revenue-by-plan"),
+      ])
 
-      if (!statsRes.ok) throw new Error("Failed to fetch stats")
-
-      setStats(await statsRes.json())
-      setCustomersByPlan(await customersPlanRes.json())
-      setDevicesByStatus(await devicesStatusRes.json())
-      setTicketsByStatus(await ticketsStatusRes.json())
-      setRevenueByPlan(await revenueRes.json())
+      setStats(statsData)
+      setCustomersByPlan(customersPlan)
+      setDevicesByStatus(devicesStatus)
+      setTicketsByStatus(ticketsStatus)
+      setRevenueByPlan(revenue)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error")
+      setError(`Could not load the dashboard: ${errorMessage(e)}`)
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchStats()
+    void fetchStats()
   }, [fetchStats])
 
   return {

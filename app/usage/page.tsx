@@ -31,7 +31,7 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 
 export default function UsagePage() {
   const [filters, setFilters] = useState<UsageFilters>({})
-  const { records, loading, loadingMore, error, hasNext, totalElements, loadMore } =
+  const { records, loading, loadingMore, error, loadMoreError, hasNext, totalElements, loadMore } =
     useUsage(filters)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -164,6 +164,14 @@ export default function UsagePage() {
                     <div className="text-muted-foreground flex items-center justify-center py-4">
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Loading more...
+                    </div>
+                  )}
+                  {loadMoreError && (
+                    <div className="flex items-center justify-center gap-2 py-4 text-sm text-red-500">
+                      {loadMoreError}
+                      <Button variant="outline" size="sm" onClick={loadMore}>
+                        Retry
+                      </Button>
                     </div>
                   )}
                   {!hasNext && records.length > 0 && (
