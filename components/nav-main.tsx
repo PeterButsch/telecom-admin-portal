@@ -17,8 +17,10 @@ import {
 import { cn } from "@/lib/utils"
 
 export function NavMain({
+  label = "Navigation",
   items,
 }: {
+  label?: string
   items: {
     title: string
     url: string
@@ -32,7 +34,7 @@ export function NavMain({
 }) {
   return (
     <SidebarGroup>
-      <SidebarGroupLabel className="text-caption">Navigation</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-caption">{label}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) =>
           item.items && item.items.length > 0 ? (

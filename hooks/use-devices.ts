@@ -1,28 +1,39 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { apiFetch, errorMessage } from "@/lib/api"
+
+export const DEVICE_STATUSES = ["AVAILABLE", "ASSIGNED", "LOST", "DAMAGED"] as const
+export type DeviceStatus = (typeof DEVICE_STATUSES)[number]
 
 export interface Device {
   id: number
   imei: string
+  manufacturer: string
   model: string
-  sim_number: string
+  status: DeviceStatus
+  line_id: number | null
+  msisdn: string | null
   customer_id: number | null
   customer_name: string | null
-  status: "AVAILABLE" | "ASSIGNED" | "LOST" | "DAMAGED"
   assigned_at: string | null
   created_at: string | null
 }
 
 export interface DeviceCreate {
   imei: string
+  manufacturer: string
   model: string
-  simNumber: string
-  customerId?: number | null
+  /** Mobile number of the line to assign the device to; leave out to keep it in stock. */
+  msisdn?: string
 }
 
-export interface DeviceUpdate extends DeviceCreate {
-  status?: string
+export interface DeviceUpdate {
+  imei?: string
+  manufacturer?: string
+  model?: string
+  msisdn?: string
+  status?: DeviceStatus
 }
 
 export function useDevices() {
@@ -33,52 +44,34 @@ export function useDevices() {
   const fetchDevices = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/devices")
-      if (!res.ok) throw new Error("Failed to fetch devices")
-      const data = await res.json()
-      setDevices(data)
+      setDevices(await apiFetch<Device[]>("/api/devices"))
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error")
+      setError(errorMessage(e))
     } finally {
       setLoading(false)
     }
   }, [])
 
   const createDevice = useCallback(async (device: DeviceCreate) => {
-    const res = await fetch("/api/devices", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(device),
-    })
-    if (!res.ok) throw new Error("Failed to create device")
-    const newDevice = await res.json()
-    setDevices((prev) => [...prev, newDevice])
-    return newDevice
+    const created = await apiFetch<Device>("/api/devices", { method: "POST", body: device })
+    setDevices((prev) => [...prev, created])
+    return created
   }, [])
 
   const updateDevice = useCallback(async (id: number, device: DeviceUpdate) => {
-    const res = await fetch(`/api/devices/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(device),
-    })
-    if (!res.ok) throw new Error("Failed to update device")
-    const updated = await res.json()
+    const updated = await apiFetch<Device>(`/api/devices/${id}`, { method: "PATCH", body: device })
     setDevices((prev) => prev.map((d) => (d.id === id ? updated : d)))
     return updated
   }, [])
 
   const deleteDevice = useCallback(async (id: number) => {
-    const res = await fetch(`/api/devices/${id}`, {
-      method: "DELETE",
-    })
-    if (!res.ok) throw new Error("Failed to delete device")
+    await apiFetch<void>(`/api/devices/${id}`, { method: "DELETE" })
     setDevices((prev) => prev.filter((d) => d.id !== id))
   }, [])
 
   useEffect(() => {
-    fetchDevices()
+    void fetchDevices()
   }, [fetchDevices])
 
   return {

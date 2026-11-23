@@ -9,6 +9,7 @@ node_modules/
 /playwright-report/
 /blob-report/
 /test-results/
+/e2e/.auth/
 
 # next.js
 /.next/
@@ -44,6 +45,8 @@ backend/bin/
 !**/src/main/**/bin/
 !**/src/test/**/bin/
 backend/app.db
+backend/app.db-shm
+backend/app.db-wal
 *.class
 *.jar
 *.war
@@ -77,7 +80,3 @@ out/
 
 # IDE - VS Code
 .vscode/
-
-# Python
-scripts/__pycache__/
-*.pyc

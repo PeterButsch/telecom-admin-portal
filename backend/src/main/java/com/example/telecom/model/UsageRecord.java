@@ -1,9 +1,23 @@
 package com.example.telecom.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+/**
+ * Daily usage per line and type. Quantity is minutes for CALL, megabytes for
+ * DATA and messages for SMS.
+ */
 @Entity
 @Table(name = "usage_records")
 public class UsageRecord {
@@ -16,33 +30,25 @@ public class UsageRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "customer_id", nullable = false)
-    private Customer customer;
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "line_id", nullable = false)
+    private MobileLine line;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "type", nullable = false)
     private Type type;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(name = "quantity", nullable = false)
     private BigDecimal quantity;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(name = "cost", nullable = false)
     private BigDecimal cost;
+
+    @Column(name = "roaming", nullable = false)
+    private boolean roaming;
 
     @Column(name = "recorded_at", nullable = false)
     private Instant recordedAt;
-
-    public UsageRecord() {
-    }
-
-    public UsageRecord(Customer customer, Type type, BigDecimal quantity, BigDecimal cost, Instant recordedAt) {
-        this.customer = customer;
-        this.type = type;
-        this.quantity = quantity;
-        this.cost = cost;
-        this.recordedAt = recordedAt;
-    }
 
     public Long getId() {
         return id;
@@ -52,12 +58,12 @@ public class UsageRecord {
         this.id = id;
     }
 
-    public Customer getCustomer() {
-        return customer;
+    public MobileLine getLine() {
+        return line;
     }
 
-    public void setCustomer(Customer customer) {
-        this.customer = customer;
+    public void setLine(MobileLine line) {
+        this.line = line;
     }
 
     public Type getType() {
@@ -82,6 +88,14 @@ public class UsageRecord {
 
     public void setCost(BigDecimal cost) {
         this.cost = cost;
+    }
+
+    public boolean isRoaming() {
+        return roaming;
+    }
+
+    public void setRoaming(boolean roaming) {
+        this.roaming = roaming;
     }
 
     public Instant getRecordedAt() {

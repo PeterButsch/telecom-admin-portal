@@ -1,10 +1,12 @@
 import type { Metadata } from "next"
+import { AuthGate } from "@/components/auth-gate"
+import { AuthProvider } from "@/components/auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Telecom Demo Admin",
-  description: "Telecom user administration portal",
+  title: "Singtel Ops Console",
+  description: "Operations console for Singtel, GOMO and hi!Card mobile services (demo)",
 }
 
 export default function RootLayout({
@@ -21,7 +23,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <AuthProvider>
+            <AuthGate>{children}</AuthGate>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

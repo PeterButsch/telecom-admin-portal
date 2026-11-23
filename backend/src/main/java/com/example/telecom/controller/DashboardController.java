@@ -1,101 +1,110 @@
 package com.example.telecom.controller;
 
+import com.example.telecom.api.Times;
+import com.example.telecom.dashboard.DashboardOverviewService;
+import com.example.telecom.dashboard.DashboardOverviewService.Overview;
+import com.example.telecom.dashboard.InsightService;
+import com.example.telecom.dashboard.InsightService.Access;
+import com.example.telecom.dashboard.InsightService.Insights;
 import com.example.telecom.model.Customer;
 import com.example.telecom.model.Device;
-import com.example.telecom.model.SupportTicket;
-import com.example.telecom.repository.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.*;
-
+import com.example.telecom.model.MobileLine;
+import com.example.telecom.model.SupportCase;
+import com.example.telecom.repository.CustomerRepository;
+import com.example.telecom.repository.DeviceRepository;
+import com.example.telecom.repository.MobileLineRepository;
+import com.example.telecom.repository.SupportCaseRepository;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * Headline figures and chart data. Monthly recurring revenue is the list price
+ * of plans on active lines.
+ */
 @RestController
 @RequestMapping("/api/dashboard")
+@Transactional(readOnly = true)
 public class DashboardController {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DashboardController.class);
+    private static final List<SupportCase.Status> OPEN_STATUSES = List.of(SupportCase.Status.OPEN,
+            SupportCase.Status.IN_PROGRESS, SupportCase.Status.PENDING_CUSTOMER);
 
     private final CustomerRepository customerRepository;
-    private final PlanRepository planRepository;
+    private final MobileLineRepository lineRepository;
     private final DeviceRepository deviceRepository;
-    private final SupportTicketRepository ticketRepository;
+    private final SupportCaseRepository caseRepository;
+    private final DashboardOverviewService overviewService;
+    private final InsightService insightService;
 
-    public DashboardController(CustomerRepository customerRepository, PlanRepository planRepository,
-            DeviceRepository deviceRepository, SupportTicketRepository ticketRepository) {
+    public DashboardController(CustomerRepository customerRepository, MobileLineRepository lineRepository,
+            DeviceRepository deviceRepository, SupportCaseRepository caseRepository,
+            DashboardOverviewService overviewService, InsightService insightService) {
         this.customerRepository = customerRepository;
-        this.planRepository = planRepository;
+        this.lineRepository = lineRepository;
         this.deviceRepository = deviceRepository;
-        this.ticketRepository = ticketRepository;
+        this.caseRepository = caseRepository;
+        this.overviewService = overviewService;
+        this.insightService = insightService;
+    }
+
+    /**
+     * Revenue and ARPU by brand, consumer versus enterprise, monthly line movement,
+     * churn, porting and case SLAs. See {@link DashboardOverviewService} for the
+     * definitions.
+     */
+    @GetMapping("/overview")
+    public Overview getOverview() {
+        return overviewService.overview(Times.now());
+    }
+
+    /**
+     * Usage and plan alerts, most severe first. See {@link InsightService} for the
+     * checks; each needs the permissions in {@link Access}.
+     */
+    @GetMapping("/insights")
+    public Insights getInsights() {
+        return insightService.insights(Times.now(), Access.current());
     }
 
     @GetMapping("/stats")
     public DashboardStats getStats() {
-        LOG.info("Fetching dashboard stats");
-        long activeCustomers = customerRepository.countByStatus(Customer.Status.ACTIVE);
-
-        BigDecimal monthlyRevenue = customerRepository.findByStatus(Customer.Status.ACTIVE).stream()
-                .filter(c -> c.getPlan() != null).map(c -> c.getPlan().getMonthlyPrice())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        long openTickets = ticketRepository
-                .countByStatusIn(List.of(SupportTicket.Status.OPEN, SupportTicket.Status.IN_PROGRESS));
-
-        long devicesInUse = deviceRepository.countByStatus(Device.Status.ASSIGNED);
-
-        LOG.debug("Dashboard stats: activeCustomers={}, monthlyRevenue={}, openTickets={}, devicesInUse={}",
-                activeCustomers, monthlyRevenue, openTickets, devicesInUse);
-        return new DashboardStats(activeCustomers, monthlyRevenue, openTickets, devicesInUse);
+        BigDecimal revenue = lineRepository.sumActiveRevenueByPlanName().stream()
+                .map(row -> CustomerController.toMoney(row[1])).reduce(BigDecimal.ZERO.setScale(2), BigDecimal::add);
+        return new DashboardStats(customerRepository.countByStatus(Customer.Status.ACTIVE),
+                lineRepository.countByStatus(MobileLine.Status.ACTIVE), revenue,
+                caseRepository.countByStatusIn(OPEN_STATUSES), deviceRepository.countByStatus(Device.Status.ASSIGNED));
     }
 
-    @GetMapping("/customers-by-plan")
-    public List<ChartData> getCustomersByPlan() {
-        LOG.info("Fetching customers by plan chart data");
-        List<ChartData> data = customerRepository.countByPlanName().stream()
+    @GetMapping("/lines-by-plan")
+    public List<ChartData> getLinesByPlan() {
+        return lineRepository.countActiveByPlanName().stream()
                 .map(row -> new ChartData((String) row[0], ((Number) row[1]).longValue())).toList();
-        LOG.debug("Found {} plan categories", data.size());
-        return data;
     }
 
     @GetMapping("/devices-by-status")
     public List<ChartData> getDevicesByStatus() {
-        LOG.info("Fetching devices by status chart data");
-        List<ChartData> data = deviceRepository.countByStatus().stream()
+        return deviceRepository.countGroupedByStatus().stream()
                 .map(row -> new ChartData(((Device.Status) row[0]).name(), ((Number) row[1]).longValue())).toList();
-        LOG.debug("Found {} device status categories", data.size());
-        return data;
     }
 
-    @GetMapping("/tickets-by-status")
-    public List<ChartData> getTicketsByStatus() {
-        LOG.info("Fetching tickets by status chart data");
-        List<ChartData> data = ticketRepository.countByStatus().stream()
-                .map(row -> new ChartData(((SupportTicket.Status) row[0]).name(), ((Number) row[1]).longValue()))
+    @GetMapping("/cases-by-status")
+    public List<ChartData> getCasesByStatus() {
+        return caseRepository.countGroupedByStatus().stream()
+                .map(row -> new ChartData(((SupportCase.Status) row[0]).name(), ((Number) row[1]).longValue()))
                 .toList();
-        LOG.debug("Found {} ticket status categories", data.size());
-        return data;
     }
 
     @GetMapping("/revenue-by-plan")
     public List<RevenueData> getRevenueByPlan() {
-        LOG.info("Fetching revenue by plan chart data");
-        Map<String, Long> customerCounts = customerRepository.findByStatus(Customer.Status.ACTIVE).stream()
-                .filter(c -> c.getPlan() != null)
-                .collect(Collectors.groupingBy(c -> c.getPlan().getName(), Collectors.counting()));
-
-        List<RevenueData> data = planRepository.findAll().stream()
-                .filter(plan -> customerCounts.containsKey(plan.getName()))
-                .map(plan -> new RevenueData(plan.getName(),
-                        plan.getMonthlyPrice().multiply(BigDecimal.valueOf(customerCounts.get(plan.getName())))))
-                .toList();
-        LOG.debug("Found {} plans with revenue data", data.size());
-        return data;
+        return lineRepository.sumActiveRevenueByPlanName().stream()
+                .map(row -> new RevenueData((String) row[0], CustomerController.toMoney(row[1]))).toList();
     }
 
-    public record DashboardStats(long active_customers, BigDecimal monthly_revenue, long open_tickets,
+    public record DashboardStats(long active_customers, long active_lines, BigDecimal monthly_revenue, long open_cases,
             long devices_in_use) {
     }
 

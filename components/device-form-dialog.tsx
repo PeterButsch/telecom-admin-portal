@@ -10,16 +10,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormError } from "@/components/form-error"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import type { Device, DeviceCreate, DeviceUpdate } from "@/hooks/use-devices"
+  SelectField,
+  TextField,
+  describeSaveError,
+  type FieldErrors,
+} from "@/components/form-fields"
+import { formatMsisdn } from "@/lib/format"
+import { options } from "@/lib/labels"
+import {
+  DEVICE_STATUSES,
+  type Device,
+  type DeviceCreate,
+  type DeviceStatus,
+  type DeviceUpdate,
+} from "@/hooks/use-devices"
 
 interface DeviceFormDialogProps {
   open: boolean
@@ -39,25 +45,35 @@ function DeviceForm({
 }) {
   const isEditing = device !== null
   const [imei, setImei] = useState(device?.imei ?? "")
+  const [manufacturer, setManufacturer] = useState(device?.manufacturer ?? "")
   const [model, setModel] = useState(device?.model ?? "")
-  const [simNumber, setSimNumber] = useState(device?.sim_number ?? "")
-  const [customerId, setCustomerId] = useState(device?.customer_id?.toString() ?? "")
-  const [status, setStatus] = useState(device?.status ?? "AVAILABLE")
+  const [msisdn, setMsisdn] = useState(device?.msisdn ? formatMsisdn(device.msisdn) : "")
+  const [status, setStatus] = useState<DeviceStatus>(device?.status ?? "AVAILABLE")
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const assigning = isEditing ? status === "ASSIGNED" : true
+
+  const buildRequest = (): DeviceCreate | DeviceUpdate => {
+    const details = { imei: imei.trim(), manufacturer: manufacturer.trim(), model: model.trim() }
+    const number = msisdn.trim() || undefined
+    if (!isEditing) return { ...details, msisdn: number }
+    // Any status other than Assigned releases the device from its line.
+    return status === "ASSIGNED" ? { ...details, status, msisdn: number } : { ...details, status }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
+    setError(null)
+    setFieldErrors({})
     try {
-      const data: DeviceCreate | DeviceUpdate = {
-        imei,
-        model,
-        simNumber,
-        customerId: customerId ? parseInt(customerId) : null,
-        ...(isEditing && { status }),
-      }
-      await onSubmit(data)
+      await onSubmit(buildRequest())
       onCancel()
+    } catch (err) {
+      const { form, fields } = describeSaveError(err)
+      setError(form)
+      setFieldErrors(fields)
     } finally {
       setSubmitting(false)
     }
@@ -69,71 +85,65 @@ function DeviceForm({
         <DialogTitle>{isEditing ? "Edit Device" : "Add Device"}</DialogTitle>
         <DialogDescription>
           {isEditing
-            ? "Update the device details below."
-            : "Fill in the details to register a new device."}
+            ? "Update the device, assign it to a line or release it back to stock."
+            : "Register a handset. Enter a mobile number to assign it straight away."}
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4">
-        <div className="space-y-2">
-          <Label htmlFor="imei">IMEI</Label>
-          <Input
-            id="imei"
-            value={imei}
-            onChange={(e) => setImei(e.target.value)}
-            placeholder="15-digit IMEI number"
+        <TextField
+          id="imei"
+          label="IMEI"
+          value={imei}
+          onChange={setImei}
+          error={fieldErrors.imei}
+          inputMode="numeric"
+          placeholder="15-digit IMEI"
+          required
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <TextField
+            id="manufacturer"
+            label="Manufacturer"
+            value={manufacturer}
+            onChange={setManufacturer}
+            error={fieldErrors.manufacturer}
+            placeholder="e.g. Apple"
             required
           />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="model">Model</Label>
-          <Input
+          <TextField
             id="model"
+            label="Model"
             value={model}
-            onChange={(e) => setModel(e.target.value)}
-            placeholder="e.g., iPhone 15 Pro"
+            onChange={setModel}
+            error={fieldErrors.model}
+            placeholder="e.g. iPhone 16 Pro"
             required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="simNumber">SIM Number</Label>
-          <Input
-            id="simNumber"
-            value={simNumber}
-            onChange={(e) => setSimNumber(e.target.value)}
-            placeholder="SIM card number"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="customerId">Customer ID (optional)</Label>
-          <Input
-            id="customerId"
-            type="number"
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
-            placeholder="Leave empty if unassigned"
           />
         </div>
         {isEditing && (
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={status}
-              onValueChange={(v) => setStatus(v as "AVAILABLE" | "ASSIGNED" | "LOST" | "DAMAGED")}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="AVAILABLE">Available</SelectItem>
-                <SelectItem value="ASSIGNED">Assigned</SelectItem>
-                <SelectItem value="LOST">Lost</SelectItem>
-                <SelectItem value="DAMAGED">Damaged</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <SelectField
+            id="status"
+            label="Status"
+            value={status}
+            options={options(DEVICE_STATUSES)}
+            onChange={(v) => setStatus(v as DeviceStatus)}
+            error={fieldErrors.status}
+          />
+        )}
+        {assigning && (
+          <TextField
+            id="msisdn"
+            label={isEditing ? "Mobile number" : "Mobile number (optional)"}
+            value={msisdn}
+            onChange={setMsisdn}
+            error={fieldErrors.msisdn}
+            placeholder="9123 4567"
+            hint={isEditing ? undefined : "Leave empty to keep the device in stock."}
+            required={isEditing}
+          />
         )}
       </div>
+      <FormError message={error} />
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
@@ -149,7 +159,7 @@ function DeviceForm({
 export function DeviceFormDialog({ open, onOpenChange, device, onSubmit }: DeviceFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[480px]">
         {open && (
           <DeviceForm
             key={device?.id ?? "new"}

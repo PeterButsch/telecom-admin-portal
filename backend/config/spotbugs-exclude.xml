@@ -7,8 +7,14 @@
 
     <!-- Exclude test classes from security checks -->
     <Match>
-        <Source name="~.*Test\.java"/>
+        <Source name="~.*(Test|TestSupport)\.java"/>
         <Bug category="SECURITY"/>
+    </Match>
+
+    <!-- Test request bodies are JSON text blocks filled with formatted(); their newlines are not output line endings. -->
+    <Match>
+        <Source name="~.*(Test|TestSupport)\.java"/>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
     </Match>
 
     <!-- Exclude JPA entity equals/hashCode warnings (intentional design) -->
@@ -28,15 +34,24 @@
         <Package name="com.example.telecom.model"/>
         <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
     </Match>
+
+    <!-- Demo data is generated from a fixed seed on purpose so every fresh database is identical. -->
     <Match>
-        <Class name="~com\.example\.telecom\.controller\.(SupportTicketController|UsageRecordController)\$PagedResponse"/>
-        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+        <Package name="com.example.telecom.seed"/>
+        <Bug pattern="PREDICTABLE_RANDOM"/>
     </Match>
 
     <!-- Controller path IDs are numeric; SpotBugs treats all request parameters as CRLF-capable strings. -->
     <Match>
         <Package name="com.example.telecom.controller"/>
         <Bug pattern="CRLF_INJECTION_LOGS"/>
+    </Match>
+
+    <!-- Constructor injection stores Spring-managed beans (for example JdbcTemplate); they are shared by design. -->
+    <Match>
+        <Package name="~com\.example\.telecom\..*"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 
     <!-- Allow Spring's @Autowired injection patterns -->

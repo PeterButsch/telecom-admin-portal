@@ -2,9 +2,8 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, CreditCard, Smartphone, BarChart3, Ticket } from "lucide-react"
 
-import { Logo } from "@/components/logo"
+import { useAuth } from "@/components/auth-provider"
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
@@ -15,72 +14,26 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-
-const user = {
-  name: "Admin User",
-  email: "admin@example.com",
-  avatar: "",
-}
-
-const teams = [
-  {
-    name: "Telecom Demo",
-    logo: Logo,
-    plan: "Admin Portal",
-  },
-]
-
-const navItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Customers",
-    url: "/customers",
-    icon: Users,
-  },
-  {
-    title: "Plans",
-    url: "/plans",
-    icon: CreditCard,
-  },
-  {
-    title: "Devices",
-    url: "/devices",
-    icon: Smartphone,
-  },
-  {
-    title: "Usage",
-    url: "/usage",
-    icon: BarChart3,
-  },
-  {
-    title: "Support Tickets",
-    url: "/tickets",
-    icon: Ticket,
-  },
-]
+import { visibleNavItems } from "@/lib/navigation"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-
-  const navItemsWithActive = navItems.map((item) => ({
-    ...item,
-    isActive: pathname === item.url || pathname.startsWith(item.url + "/"),
-  }))
+  const { can } = useAuth()
+  const items = visibleNavItems(can, pathname)
+  const operations = items.filter((item) => item.section === "operations")
+  const administration = items.filter((item) => item.section === "administration")
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={teams} />
+        <TeamSwitcher product="Ops Console" />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItemsWithActive} />
+        <NavMain items={operations} />
+        {administration.length > 0 && <NavMain label="Administration" items={administration} />}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
