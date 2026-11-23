@@ -54,6 +54,7 @@ public class CustomerController {
     static final String PHONE_PATTERN = "^\\+?[0-9 ()-]{8,20}$";
     static final String PHONE_MESSAGE = "must contain 8 to 20 digits, spaces, +, - or brackets";
     private static final String POSTAL_PATTERN = "^\\d{6}$";
+    private static final String POSTAL_OR_EMPTY_PATTERN = "^(\\d{6})?$";
     private static final String POSTAL_MESSAGE = "must be a 6-digit Singapore postal code";
     private static final String CUSTOMER = "Customer ";
     private static final String DOES_NOT_EXIST = " does not exist.";
@@ -230,12 +231,16 @@ public class CustomerController {
             @Pattern(regexp = POSTAL_PATTERN, message = POSTAL_MESSAGE) String postalCode) {
     }
 
-    /** Partial update: fields left out or sent as null keep their current value. */
+    /**
+     * Partial update: fields left out or sent as null keep their current value. An
+     * empty address line or postal code clears it.
+     */
     public record CustomerUpdateRequest(@Size(min = 1, max = 100) String firstName,
             @Size(min = 1, max = 100) String lastName, @Size(min = 1, max = 200) String companyName,
             @Size(max = 200) String contactName, @Email @Size(min = 3, max = 254) String email,
             @Pattern(regexp = PHONE_PATTERN, message = PHONE_MESSAGE) String phone, @Size(max = 200) String addressLine,
-            @Pattern(regexp = POSTAL_PATTERN, message = POSTAL_MESSAGE) String postalCode, Customer.Status status) {
+            @Pattern(regexp = POSTAL_OR_EMPTY_PATTERN, message = POSTAL_MESSAGE) String postalCode,
+            Customer.Status status) {
     }
 
     /**

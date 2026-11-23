@@ -28,7 +28,9 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { options } from "@/lib/labels"
 
 export default function CasesPage() {
-  const canWrite = useAuth().can("CASE_WRITE")
+  const { can } = useAuth()
+  const canWrite = can("CASE_WRITE")
+  const showCustomer = can("CUSTOMER_READ")
   const [search, setSearch] = useState("")
   const [priority, setPriority] = useState<CasePriority | null>(null)
   const [status, setStatus] = useState<CaseStatus | null>(null)
@@ -144,6 +146,7 @@ export default function CasesPage() {
           >
             <CasesTable
               cases={list.cases}
+              showCustomer={showCustomer}
               onEdit={
                 canWrite
                   ? (supportCase) => {

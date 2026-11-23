@@ -20,20 +20,22 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     long findMaxId();
 
     /**
-     * Searches by name, company, email, customer number or UEN, and by MSISDN or
-     * account number when the search contains digits. ID numbers (NRIC/FIN) are
-     * deliberately not searchable.
+     * Searches by name, company, email, customer number or UEN, and by contact
+     * phone, MSISDN or account number when the search contains digits. ID numbers
+     * (NRIC/FIN) are deliberately not searchable.
      */
     @Query("""
             SELECT c FROM Customer c
             WHERE (:type IS NULL OR c.type = :type)
               AND (:status IS NULL OR c.status = :status)
               AND (:text IS NULL
-                   OR LOWER(CONCAT(COALESCE(c.firstName, ''), ' ', COALESCE(c.lastName, ''))) LIKE :text
-                   OR LOWER(COALESCE(c.companyName, '')) LIKE :text
-                   OR LOWER(c.email) LIKE :text
-                   OR LOWER(c.customerNumber) LIKE :text
-                   OR LOWER(COALESCE(c.uen, '')) LIKE :text
+                   OR LOWER(CONCAT(COALESCE(c.firstName, ''), ' ', COALESCE(c.lastName, ''))) LIKE :text ESCAPE '!'
+                   OR LOWER(COALESCE(c.companyName, '')) LIKE :text ESCAPE '!'
+                   OR LOWER(c.email) LIKE :text ESCAPE '!'
+                   OR LOWER(c.customerNumber) LIKE :text ESCAPE '!'
+                   OR LOWER(COALESCE(c.uen, '')) LIKE :text ESCAPE '!'
+                   OR (:digits IS NOT NULL AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(c.phone,
+                        ' ', ''), '-', ''), '(', ''), ')', ''), '+', '') LIKE :digits)
                    OR (:digits IS NOT NULL AND EXISTS (
                         SELECT 1 FROM Account a WHERE a.customer = c AND a.accountNumber LIKE :digits))
                    OR (:digits IS NOT NULL AND EXISTS (

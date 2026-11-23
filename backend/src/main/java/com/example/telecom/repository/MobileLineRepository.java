@@ -33,17 +33,18 @@ public interface MobileLineRepository extends JpaRepository<MobileLine, Long> {
               AND (:customerId IS NULL OR l.account.customer.id = :customerId)
               AND (:accountId IS NULL OR l.account.id = :accountId)
               AND (:text IS NULL
-                   OR LOWER(CONCAT(COALESCE(l.account.customer.firstName, ''), ' ',
-                                   COALESCE(l.account.customer.lastName, ''))) LIKE :text
-                   OR LOWER(COALESCE(l.account.customer.companyName, '')) LIKE :text
-                   OR LOWER(COALESCE(l.userName, '')) LIKE :text
+                   OR (:names = TRUE
+                       AND (LOWER(CONCAT(COALESCE(l.account.customer.firstName, ''), ' ',
+                                         COALESCE(l.account.customer.lastName, ''))) LIKE :text ESCAPE '!'
+                            OR LOWER(COALESCE(l.account.customer.companyName, '')) LIKE :text ESCAPE '!'
+                            OR LOWER(COALESCE(l.userName, '')) LIKE :text ESCAPE '!'))
                    OR (:digits IS NOT NULL AND (l.msisdn LIKE :digits OR l.iccid LIKE :digits
                                                 OR l.account.accountNumber LIKE :digits)))
             ORDER BY l.id
             """)
     Page<MobileLine> search(@Param("status") MobileLine.Status status, @Param("brand") Plan.Brand brand,
             @Param("customerId") Long customerId, @Param("accountId") Long accountId, @Param("text") String text,
-            @Param("digits") String digits, Pageable pageable);
+            @Param("names") boolean names, @Param("digits") String digits, Pageable pageable);
 
     /** Rows of customer id, number of lines and number of active lines. */
     @Query("""

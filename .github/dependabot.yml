@@ -14,10 +14,6 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-  - package-ecosystem: pip
-    directory: /scripts
-    schedule:
-      interval: weekly
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -83,14 +83,18 @@ export function StaffTable({
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Reset password of ${user.username}`}
-                  onClick={() => onResetPassword(user)}
-                >
-                  <KeyRound className="h-4 w-4" />
-                </Button>
+                {/* An admin reset ends the target's sessions, so your own password is changed
+                    from the account menu instead. */}
+                {user.id !== currentUserId && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Reset password of ${user.username}`}
+                    onClick={() => onResetPassword(user)}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                  </Button>
+                )}
                 {user.is_locked && (
                   <Button
                     variant="ghost"

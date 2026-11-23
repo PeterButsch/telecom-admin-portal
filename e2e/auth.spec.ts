@@ -47,6 +47,36 @@ test.describe("Sign-in and roles", () => {
     expect(customerRequests).toEqual([])
   })
 
+  test("care agents can edit devices but not delete them", async ({ page }) => {
+    await signInUi(page, "agent")
+    await page.goto("/devices")
+    await expect(page.locator("table tbody tr").first()).toBeVisible()
+    await expect(page.getByRole("columnheader", { name: "Customer" })).toBeVisible()
+    await expect(page.getByRole("button", { name: /^Edit device / }).first()).toBeVisible()
+    await expect(page.getByRole("button", { name: /^Delete device / })).toHaveCount(0)
+  })
+
+  test("product managers see devices without lines or customers", async ({ page }) => {
+    await signInUi(page, "product")
+    await page.goto("/devices")
+    await expect(page.locator("table tbody tr").first()).toBeVisible()
+    await expect(page.getByRole("columnheader", { name: "IMEI" })).toBeVisible()
+    await expect(page.getByRole("columnheader", { name: "Customer" })).toHaveCount(0)
+    await expect(page.getByRole("columnheader", { name: "Mobile number" })).toHaveCount(0)
+  })
+
+  test("network operations see lines by account, without customer names", async ({ page }) => {
+    await signInUi(page, "netops")
+    await page.goto("/lines")
+    await expect(page.locator("table tbody tr").first()).toBeVisible()
+    await expect(page.getByRole("columnheader", { name: "Account" })).toBeVisible()
+    await expect(page.getByRole("columnheader", { name: "Customer" })).toHaveCount(0)
+    await expect(page.getByLabel("Search")).toHaveAttribute(
+      "placeholder",
+      "Mobile number, account no. or ICCID"
+    )
+  })
+
   test("rejects an incorrect password", async ({ page }) => {
     await page.goto("/login")
     await page.getByLabel("Username").fill("nobody.e2e")

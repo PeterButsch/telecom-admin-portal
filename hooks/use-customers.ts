@@ -87,7 +87,7 @@ export function useCustomers({ q, type, status }: CustomerFilters = {}) {
     [q, type, status]
   )
   const list = usePagedList<Customer>(buildUrl)
-  const { setItems, refresh } = list
+  const { setItems, removeItem, refresh } = list
 
   const createCustomer = useCallback(
     async (customer: CustomerCreate) => {
@@ -116,9 +116,9 @@ export function useCustomers({ q, type, status }: CustomerFilters = {}) {
   const deleteCustomer = useCallback(
     async (id: number) => {
       await apiFetch<void>(`/api/customers/${id}`, { method: "DELETE" })
-      setItems((prev) => prev.filter((c) => c.id !== id))
+      removeItem(id)
     },
-    [setItems]
+    [removeItem]
   )
 
   return {

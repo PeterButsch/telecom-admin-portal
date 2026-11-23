@@ -52,20 +52,21 @@ const NO_LINE = "none"
 
 /** Lines of the chosen customer, so a case can be raised against one of them. */
 function useCustomerLines(customerId: number | null) {
-  const [lines, setLines] = useState<Line[]>([])
+  const [loaded, setLoaded] = useState<{ customerId: number; lines: Line[] } | null>(null)
   useEffect(() => {
     if (!customerId) return
     const controller = new AbortController()
     apiFetch<PagedResponse<Line>>(`/api/lines?customerId=${customerId}&size=100`, {
       signal: controller.signal,
     })
-      .then((page) => setLines(page.content))
+      .then((page) => setLoaded({ customerId, lines: page.content }))
       .catch(() => {
-        if (!controller.signal.aborted) setLines([])
+        if (!controller.signal.aborted) setLoaded({ customerId, lines: [] })
       })
     return () => controller.abort()
   }, [customerId])
-  return customerId ? lines : []
+  // Lines of the previously chosen customer stay hidden until this customer's lines arrive.
+  return customerId && loaded?.customerId === customerId ? loaded.lines : []
 }
 
 function CaseForm({

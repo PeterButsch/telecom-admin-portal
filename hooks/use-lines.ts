@@ -22,8 +22,9 @@ export interface Line {
   account_id: number
   account_number: string
   account_type: "POSTPAID" | "PREPAID"
-  customer_id: number
-  customer_name: string
+  /** Left out for staff who may not read customers, as is user_name. */
+  customer_id: number | null
+  customer_name: string | null
   customer_type: "INDIVIDUAL" | "BUSINESS"
   user_name: string | null
   promotion_code: string | null

@@ -33,9 +33,10 @@ export type CaseChannel = (typeof CASE_CHANNELS)[number]
 export interface SupportCase {
   id: number
   case_number: string
-  customer_id: number
-  customer_number: string
-  customer_name: string
+  /** Left out for staff who may not read customers. */
+  customer_id: number | null
+  customer_number: string | null
+  customer_name: string | null
   line_id: number | null
   msisdn: string | null
   category: CaseCategory

@@ -98,7 +98,9 @@ class DashboardOverviewTest extends IntegrationTestSupport {
         MonthFigures january = months.get(10);
         MonthFigures february = months.get(11);
         assertEquals(new MonthFigures("2026-01", false, 0, 3, 0, 1, 0, null), january);
-        assertEquals(new MonthFigures("2026-02", true, 3, 4, 2, 1, 2, money("66.67")), february);
+        // Of the 3 lines in service on 1 February only line 5 ended; line 2 started
+        // and ended in February.
+        assertEquals(new MonthFigures("2026-02", true, 3, 4, 2, 1, 2, money("33.33")), february);
         assertTrue(months.subList(0, 10).stream().allMatch(m -> m.activations() == 0 && m.lines_at_start() == 0));
         assertFalse(months.get(9).partial());
     }
@@ -107,14 +109,29 @@ class DashboardOverviewTest extends IntegrationTestSupport {
     void recentFiguresCoverTheLastThirtyDays() {
         Kpis kpis = service.overview(NOW).kpis();
 
-        // Window starts 21 January: lines 5 and 6 were already in service, and both
-        // lines 2 and 5 ended.
+        // Window starts 21 January: lines 5 and 6 were already in service. Lines 2
+        // and 5 ended, but only line 5 was in service at the start, so churn is 1 of 2.
         assertEquals(5, kpis.activations_30d());
         assertEquals(2, kpis.terminations_30d());
         assertEquals(3, kpis.net_adds_30d());
-        assertEquals(money("100.00"), kpis.churn_rate_30d());
+        assertEquals(money("50.00"), kpis.churn_rate_30d());
         assertEquals(1, kpis.port_ins_30d());
         assertEquals(2, kpis.port_outs_30d());
+    }
+
+    @Test
+    void linesStartedAndEndedInThePeriodAreNotChurn() {
+        // Two more lines that started and ended inside the 30-day window: they are
+        // terminations (4 against 2 lines in service at the start), but churn only
+        // counts lines that were in service at the start.
+        line(8, 2, "TERMINATED", "2026-01-25 00:00:00.000", "2026-01-28 00:00:00.000", null, null);
+        line(9, 2, "TERMINATED", "2026-02-03 00:00:00.000", "2026-02-15 00:00:00.000", null, null);
+        Overview overview = service.overview(NOW);
+
+        assertEquals(4, overview.kpis().terminations_30d());
+        assertEquals(money("50.00"), overview.kpis().churn_rate_30d());
+        assertTrue(overview.months().stream()
+                .allMatch(m -> m.churn_rate() == null || m.churn_rate().compareTo(money("100")) <= 0));
     }
 
     @Test

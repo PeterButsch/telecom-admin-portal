@@ -10,8 +10,9 @@ export interface UsageRecord {
   id: number
   line_id: number
   msisdn: string
-  customer_id: number
-  customer_name: string
+  /** Left out for staff who may not read customers. */
+  customer_id: number | null
+  customer_name: string | null
   type: UsageType
   quantity: number
   unit: "MIN" | "MB" | "SMS"

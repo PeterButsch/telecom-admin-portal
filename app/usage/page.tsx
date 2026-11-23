@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { X } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -19,6 +20,7 @@ import { options } from "@/lib/labels"
 const MSISDN = /^(\+?65)?[89]\d{7}$/
 
 export default function UsagePage() {
+  const showCustomer = useAuth().can("CUSTOMER_READ")
   const [msisdnInput, setMsisdnInput] = useState("")
   const [type, setType] = useState<UsageType | null>(null)
   const [dateFrom, setDateFrom] = useState("")
@@ -130,7 +132,7 @@ export default function UsagePage() {
             scrollRef={scrollRef}
             emptyMessage="No usage matches these filters."
           >
-            <UsageTable records={list.records} />
+            <UsageTable records={list.records} showCustomer={showCustomer} />
           </PagedListBody>
         </CardContent>
       </Card>

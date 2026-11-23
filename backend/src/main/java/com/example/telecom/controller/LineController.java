@@ -13,6 +13,7 @@ import com.example.telecom.model.Plan;
 import com.example.telecom.repository.DeviceRepository;
 import com.example.telecom.repository.LineAddOnRepository;
 import com.example.telecom.repository.MobileLineRepository;
+import com.example.telecom.security.Permission;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,8 +43,10 @@ public class LineController {
     }
 
     /**
-     * {@code q} matches the MSISDN, ICCID, account number, customer name or line
-     * user.
+     * {@code q} matches the MSISDN, ICCID or account number, and for staff who may
+     * read customers also the customer name and line user. Without CUSTOMER_READ
+     * the {@code customerId} filter is ignored, so it cannot reveal whose lines
+     * they are.
      */
     @GetMapping
     @Transactional(readOnly = true)
@@ -52,8 +55,9 @@ public class LineController {
             @RequestParam(required = false) MobileLine.Status status, @RequestParam(required = false) Plan.Brand brand,
             @RequestParam(required = false) Long customerId, @RequestParam(required = false) Long accountId) {
         SearchTerms terms = SearchTerms.of(q);
-        return PageResponse.of(repository.search(status, brand, customerId, accountId, terms.text(), terms.digits(),
-                Paging.of(page, size)), LineResponse::from);
+        boolean customers = Permission.CUSTOMER_READ.isGranted();
+        return PageResponse.of(repository.search(status, brand, customers ? customerId : null, accountId, terms.text(),
+                customers, terms.digits(), Paging.of(page, size)), line -> LineResponse.from(line, customers));
     }
 
     @GetMapping("/{id}")
@@ -65,7 +69,7 @@ public class LineController {
                 .map(AddOnResponse::from).toList();
         DeviceSummary device = deviceRepository.findFirstByLineIdAndStatus(id, Device.Status.ASSIGNED)
                 .map(DeviceSummary::from).orElse(null);
-        return new LineDetailResponse(LineResponse.from(line), addOns, device);
+        return new LineDetailResponse(LineResponse.from(line, Permission.CUSTOMER_READ.isGranted()), addOns, device);
     }
 
     public record LineResponse(Long id, String msisdn, String sim_type, String iccid, String status,
@@ -75,14 +79,16 @@ public class LineController {
             String promotion_ends_on, String contract_start, String contract_end, String port_in_from,
             String port_out_to, String activated_at, String terminated_at) {
 
-        static LineResponse from(MobileLine l) {
+        /** Without {@code showCustomer} the customer and line user are left out. */
+        static LineResponse from(MobileLine l, boolean showCustomer) {
             Plan plan = l.getPlan();
             Customer customer = l.getAccount().getCustomer();
             return new LineResponse(l.getId(), l.getMsisdn(), l.getSimType().name(), l.getIccid(), l.getStatus().name(),
                     l.getStatusReason(), plan.getBrand().name(), plan.getId(), plan.getName(),
                     plan.getCategory().name(), CustomerController.toMoney(plan.getMonthlyPrice()),
                     l.getAccount().getId(), l.getAccount().getAccountNumber(), l.getAccount().getType().name(),
-                    customer.getId(), customer.displayName(), customer.getType().name(), l.getUserName(),
+                    showCustomer ? customer.getId() : null, showCustomer ? customer.displayName() : null,
+                    customer.getType().name(), showCustomer ? l.getUserName() : null,
                     l.getPromotion() != null ? l.getPromotion().getCode() : null, Times.iso(l.getPromotionEndsOn()),
                     Times.iso(l.getContractStart()), Times.iso(l.getContractEnd()), name(l.getPortInFrom()),
                     name(l.getPortOutTo()), Times.iso(l.getActivatedAt()), Times.iso(l.getTerminatedAt()));

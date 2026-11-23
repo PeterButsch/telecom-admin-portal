@@ -44,7 +44,7 @@ public class AuditService {
         event.setActorRole(actor.role() != null ? actor.role().name() : null);
         event.setAction(action.name());
         event.setEntityType(action.entity().name());
-        event.setEntityId(entityId != null ? entityId.toString() : null);
+        event.setEntityId(entityId != null ? clean(entityId.toString(), MAX_SUMMARY) : null);
         event.setSummary(clean(summary, MAX_SUMMARY));
         event.setOutcome(outcome);
         repository.save(event);
@@ -52,7 +52,8 @@ public class AuditService {
 
     /**
      * Strips line breaks and masks anything shaped like an NRIC or FIN, so a
-     * careless summary can never put a full ID number in the trail.
+     * careless summary or a request path used as the entity id can never put a full
+     * ID number in the trail.
      */
     static String clean(String value, int maxLength) {
         String text = value == null || value.isBlank() ? "-" : value.replaceAll("[\\r\\n\\t]+", " ").trim();

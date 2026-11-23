@@ -10,6 +10,7 @@ export type Permission =
   | "PLAN_WRITE"
   | "DEVICE_READ"
   | "DEVICE_WRITE"
+  | "DEVICE_DELETE"
   | "USAGE_READ"
   | "DASHBOARD_READ"
   | "AUDIT_READ"

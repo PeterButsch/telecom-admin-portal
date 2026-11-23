@@ -1,11 +1,11 @@
 package com.example.telecom.controller;
 
+import com.example.telecom.api.Times;
 import com.example.telecom.controller.CustomerController.CustomerCreateRequest;
 import com.example.telecom.controller.CustomerController.CustomerUpdateRequest;
 import com.example.telecom.error.FieldValidationException;
 import com.example.telecom.model.Customer;
 import com.example.telecom.model.IdentityNumbers;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.LinkedHashMap;
@@ -90,7 +90,7 @@ final class CustomerRules {
         LocalDate dob = request.dateOfBirth();
         if (dob == null) {
             errors.put("dateOfBirth", REQUIRED);
-        } else if (Period.between(dob, LocalDate.now(Clock.systemUTC())).getYears() < MINIMUM_AGE) {
+        } else if (Period.between(dob, LocalDate.now(Times.SINGAPORE)).getYears() < MINIMUM_AGE) {
             errors.put("dateOfBirth", "account holders must be at least " + MINIMUM_AGE + " years old");
         }
         throwIfAny(errors);
@@ -156,7 +156,7 @@ final class CustomerRules {
             customer.setAddressLine(CustomerController.trimToNull(request.addressLine()));
         }
         if (request.postalCode() != null) {
-            customer.setPostalCode(request.postalCode());
+            customer.setPostalCode(CustomerController.trimToNull(request.postalCode()));
         }
         if (request.status() != null) {
             customer.setStatus(request.status());

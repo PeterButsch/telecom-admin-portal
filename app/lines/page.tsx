@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { X } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FilterSelect } from "@/components/filter-select"
@@ -16,6 +17,7 @@ import { BRANDS, type Brand } from "@/hooks/use-plans"
 import { options } from "@/lib/labels"
 
 export default function LinesPage() {
+  const showCustomer = useAuth().can("CUSTOMER_READ")
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<LineStatus | null>(null)
   const [brand, setBrand] = useState<Brand | null>(null)
@@ -49,7 +51,11 @@ export default function LinesPage() {
               label="Search"
               value={search}
               onChange={setSearch}
-              placeholder="Mobile number, customer, line user or ICCID"
+              placeholder={
+                showCustomer
+                  ? "Mobile number, customer, line user or ICCID"
+                  : "Mobile number, account no. or ICCID"
+              }
               className="w-[340px]"
             />
             <FilterSelect
@@ -94,7 +100,7 @@ export default function LinesPage() {
             scrollRef={scrollRef}
             emptyMessage="No lines match these filters."
           >
-            <LinesTable lines={list.lines} />
+            <LinesTable lines={list.lines} showCustomer={showCustomer} />
           </PagedListBody>
         </CardContent>
       </Card>

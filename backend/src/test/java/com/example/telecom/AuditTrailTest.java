@@ -44,6 +44,17 @@ class AuditTrailTest extends IntegrationTestSupport {
     }
 
     @Test
+    void deniedRequestPathsAreRecordedWithoutIdNumbers() throws Exception {
+        mockMvc.perform(get("/api/lookup/" + ADA_NRIC)).andExpect(status().isForbidden());
+        Map<String, Object> event = auditEvents().getLast();
+        assertEquals("ACCESS_DENIED", event.get("action"));
+        String entityId = (String) event.get("entity_id");
+        assertTrue(entityId.startsWith("GET /api/lookup/"), entityId);
+        assertFalse(entityId.contains(ADA_NRIC), entityId);
+        assertFalse(((String) event.get("summary")).contains(ADA_NRIC), (String) event.get("summary"));
+    }
+
+    @Test
     void planPriceChangesShowOldAndNewValues() throws Exception {
         putJson("/api/plans/1", """
                 {"code":"TEST-5G","name":"Test 5G 100GB","brand":"SINGTEL","category":"POSTPAID",
@@ -92,5 +103,30 @@ class AuditTrailTest extends IntegrationTestSupport {
         mockMvc.perform(get("/api/audit-events").param("action", "HACKED")).andExpect(status().isBadRequest());
         mockMvc.perform(get("/api/audit-events/filters")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.actions[0]").value("LOGIN"));
+    }
+
+    @Test
+    void auditDateRangeCoversWholeSingaporeDays() throws Exception {
+        String insert = "INSERT INTO audit_events (occurred_at, actor_username, action, summary, outcome)"
+                + " VALUES (?, 'tester', 'LOGIN', ?, 'SUCCESS')";
+        jdbc.update(insert, "2026-01-31 15:59:59.999", "day-test before");
+        jdbc.update(insert, "2026-01-31 16:00:00.000", "day-test first");
+        jdbc.update(insert, "2026-02-01 15:59:59.999", "day-test last");
+        jdbc.update(insert, "2026-02-01 16:00:00.000", "day-test after");
+        mockMvc.perform(get("/api/audit-events").param("q", "day-test").param("dateFrom", "2026-02-01").param("dateTo",
+                "2026-02-01")).andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].summary").value("day-test last"))
+                .andExpect(jsonPath("$.content[1].summary").value("day-test first"));
+    }
+
+    @Test
+    void auditSearchTreatsWildcardsLiterally() throws Exception {
+        String insert = "INSERT INTO audit_events (occurred_at, actor_username, action, summary, outcome)"
+                + " VALUES ('2026-02-01 00:00:00.000', 'tester', 'LOGIN', ?, 'SUCCESS')";
+        jdbc.update(insert, "Discount 50% applied");
+        jdbc.update(insert, "Discount 50 applied");
+        mockMvc.perform(get("/api/audit-events").param("q", "50%")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].summary").value("Discount 50% applied"));
     }
 }

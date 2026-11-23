@@ -56,9 +56,7 @@ public class LoginService {
         Instant now = Times.now();
         StaffUser user = users.findByUsernameIgnoreCase(name).orElse(null);
         if (user != null && user.isLocked(now)) {
-            audit.record(Actor.of(user), AuditAction.LOGIN_FAILED, Outcome.FAILED, user.getId(),
-                    "Sign-in refused: account locked");
-            throw new UnauthorizedException(lockedMessage(user, now));
+            throw refuseLocked(user, now);
         }
         if (!passwordMatches(user, password)) {
             recordFailure(user, name, now);
@@ -69,13 +67,26 @@ public class LoginService {
                     "Sign-in refused: account disabled");
             throw new UnauthorizedException("This account is disabled. Ask an administrator to reactivate it.");
         }
+        recordSignIn(user, now);
+        startSession(user, request, response, true);
+        audit.record(Actor.of(user), AuditAction.LOGIN, Outcome.SUCCESS, user.getId(), "Signed in");
+        return user;
+    }
+
+    private void recordSignIn(StaffUser user, Instant now) {
+        if (users.recordSignIn(user.getId(), now) == 0) {
+            // Parallel wrong guesses locked the account after the lock check in login.
+            throw refuseLocked(users.findById(user.getId()).orElse(user), now);
+        }
         user.setFailedLogins(0);
         user.setLockedUntil(null);
         user.setLastLoginAt(now);
-        StaffUser saved = users.save(user);
-        startSession(saved, request, response, true);
-        audit.record(Actor.of(saved), AuditAction.LOGIN, Outcome.SUCCESS, saved.getId(), "Signed in");
-        return saved;
+    }
+
+    private UnauthorizedException refuseLocked(StaffUser user, Instant now) {
+        audit.record(Actor.of(user), AuditAction.LOGIN_FAILED, Outcome.FAILED, user.getId(),
+                "Sign-in refused: account locked");
+        return new UnauthorizedException(lockedMessage(user, now));
     }
 
     /**
@@ -121,20 +132,18 @@ public class LoginService {
                     "Sign-in failed: unknown username");
             return;
         }
-        int failures = user.getFailedLogins() + 1;
-        if (failures >= maxFailedLogins) {
-            user.setFailedLogins(0);
-            user.setLockedUntil(now.plus(lockout));
-            users.save(user);
+        if (users.recordFailedLogin(user.getId(), now) == 0) {
             audit.record(Actor.of(user), AuditAction.LOGIN_FAILED, Outcome.FAILED, user.getId(),
-                    "Sign-in failed: wrong password (" + failures + " of " + maxFailedLogins + ")");
+                    "Sign-in failed: wrong password (account locked)");
+            return;
+        }
+        int failures = Math.min(users.findFailedLogins(user.getId()), maxFailedLogins);
+        audit.record(Actor.of(user), AuditAction.LOGIN_FAILED, Outcome.FAILED, user.getId(),
+                "Sign-in failed: wrong password (" + failures + " of " + maxFailedLogins + ")");
+        if (failures >= maxFailedLogins
+                && users.lockAfterFailedLogins(user.getId(), maxFailedLogins, now.plus(lockout)) == 1) {
             audit.record(Actor.of(user), AuditAction.ACCOUNT_LOCKED, Outcome.SUCCESS, user.getId(), "Locked for "
                     + lockout.toMinutes() + " minutes after " + maxFailedLogins + " failed sign-in attempts");
-        } else {
-            user.setFailedLogins(failures);
-            users.save(user);
-            audit.record(Actor.of(user), AuditAction.LOGIN_FAILED, Outcome.FAILED, user.getId(),
-                    "Sign-in failed: wrong password (" + failures + " of " + maxFailedLogins + ")");
         }
     }
 

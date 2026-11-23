@@ -25,7 +25,8 @@ public interface SupportCaseRepository extends JpaRepository<SupportCase, Long> 
               AND (:status IS NULL OR c.status = :status)
               AND (:category IS NULL OR c.category = :category)
               AND (:customerId IS NULL OR c.customer.id = :customerId)
-              AND (:text IS NULL OR LOWER(c.caseNumber) LIKE :text OR LOWER(c.subject) LIKE :text)
+              AND (:text IS NULL OR LOWER(c.caseNumber) LIKE :text ESCAPE '!'
+                   OR LOWER(c.subject) LIKE :text ESCAPE '!')
             ORDER BY c.createdAt DESC, c.id DESC
             """)
     Page<SupportCase> findFiltered(@Param("priority") SupportCase.Priority priority,

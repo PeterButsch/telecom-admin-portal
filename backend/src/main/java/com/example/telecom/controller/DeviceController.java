@@ -12,6 +12,7 @@ import com.example.telecom.model.Device;
 import com.example.telecom.model.MobileLine;
 import com.example.telecom.repository.DeviceRepository;
 import com.example.telecom.repository.MobileLineRepository;
+import com.example.telecom.security.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -61,13 +62,15 @@ public class DeviceController {
     @GetMapping
     @Transactional(readOnly = true)
     public List<DeviceResponse> getAllDevices() {
-        return repository.findAll(Sort.by("id")).stream().map(DeviceResponse::from).toList();
+        boolean lines = Permission.LINE_READ.isGranted();
+        boolean customers = Permission.CUSTOMER_READ.isGranted();
+        return repository.findAll(Sort.by("id")).stream().map(d -> DeviceResponse.from(d, lines, customers)).toList();
     }
 
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     public DeviceResponse getDevice(@PathVariable Long id) {
-        return DeviceResponse.from(findDevice(id));
+        return response(findDevice(id));
     }
 
     @PostMapping
@@ -86,7 +89,7 @@ public class DeviceController {
         LOG.info("Device created: id={}", saved.getId());
         audit.record(AuditAction.DEVICE_CREATED, saved.getId(), "Added " + saved.getManufacturer() + " "
                 + saved.getModel() + " IMEI " + saved.getImei() + assignment(saved));
-        return DeviceResponse.from(saved);
+        return response(saved);
     }
 
     /**
@@ -121,7 +124,7 @@ public class DeviceController {
         if (!changes.isEmpty()) {
             audit.record(AuditAction.DEVICE_UPDATED, id, "Updated device " + imei + ": " + changes.describe());
         }
-        return DeviceResponse.from(saved);
+        return response(saved);
     }
 
     private void applyAssignment(Device device, DeviceUpdateRequest request) {
@@ -213,6 +216,10 @@ public class DeviceController {
         }
     }
 
+    private static DeviceResponse response(Device device) {
+        return DeviceResponse.from(device, Permission.LINE_READ.isGranted(), Permission.CUSTOMER_READ.isGranted());
+    }
+
     private Device findDevice(Long id) {
         return repository.findById(id).orElseThrow(() -> new NotFoundException("Device " + id + " does not exist."));
     }
@@ -230,13 +237,18 @@ public class DeviceController {
 
     public record DeviceResponse(Long id, String imei, String manufacturer, String model, String status, Long line_id,
             String msisdn, Long customer_id, String customer_name, String assigned_at, String created_at) {
-        static DeviceResponse from(Device d) {
-            MobileLine line = d.getLine();
+        /**
+         * The line is left out without {@code showLine}, the customer without
+         * {@code showCustomer}.
+         */
+        static DeviceResponse from(Device d, boolean showLine, boolean showCustomer) {
+            MobileLine line = showLine ? d.getLine() : null;
+            MobileLine customerLine = showCustomer ? d.getLine() : null;
             return new DeviceResponse(d.getId(), d.getImei(), d.getManufacturer(), d.getModel(), d.getStatus().name(),
                     line != null ? line.getId() : null, line != null ? line.getMsisdn() : null,
-                    line != null ? line.getAccount().getCustomer().getId() : null,
-                    line != null ? line.getAccount().getCustomer().displayName() : null, Times.iso(d.getAssignedAt()),
-                    Times.iso(d.getCreatedAt()));
+                    customerLine != null ? customerLine.getAccount().getCustomer().getId() : null,
+                    customerLine != null ? customerLine.getAccount().getCustomer().displayName() : null,
+                    Times.iso(d.getAssignedAt()), Times.iso(d.getCreatedAt()));
         }
     }
 }

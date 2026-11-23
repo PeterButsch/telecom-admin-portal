@@ -16,6 +16,7 @@ import com.example.telecom.model.SupportCase;
 import com.example.telecom.repository.CustomerRepository;
 import com.example.telecom.repository.MobileLineRepository;
 import com.example.telecom.repository.SupportCaseRepository;
+import com.example.telecom.security.Permission;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -75,15 +76,15 @@ public class SupportCaseController {
             @RequestParam(required = false) Long customerId) {
         SearchTerms terms = SearchTerms.of(q);
         Instant now = Times.now();
-        return PageResponse.of(
-                repository.findFiltered(priority, status, category, customerId, terms.text(), Paging.of(page, size)),
-                c -> CaseResponse.from(c, now));
+        boolean customers = Permission.CUSTOMER_READ.isGranted();
+        return PageResponse.of(repository.findFiltered(priority, status, category, customers ? customerId : null,
+                terms.text(), Paging.of(page, size)), c -> CaseResponse.from(c, now, customers));
     }
 
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
     public CaseResponse getCase(@PathVariable Long id) {
-        return CaseResponse.from(findCase(id), Times.now());
+        return CaseResponse.from(findCase(id), Times.now(), Permission.CUSTOMER_READ.isGranted());
     }
 
     /** Opens a case. The SLA due time follows from the priority. */
@@ -115,7 +116,7 @@ public class SupportCaseController {
         audit.record(AuditAction.CASE_CREATED, saved.getId(),
                 "Opened " + saved.getPriority() + " " + saved.getCategory() + " case " + saved.getCaseNumber()
                         + " for customer " + customer.getCustomerNumber());
-        return CaseResponse.from(saved, now);
+        return CaseResponse.from(saved, now, Permission.CUSTOMER_READ.isGranted());
     }
 
     /**
@@ -147,7 +148,7 @@ public class SupportCaseController {
             audit.record(AuditAction.CASE_UPDATED, id,
                     "Updated case " + saved.getCaseNumber() + ": " + changes.describe());
         }
-        return CaseResponse.from(saved, now);
+        return CaseResponse.from(saved, now, Permission.CUSTOMER_READ.isGranted());
     }
 
     private static ChangeSet applyDetails(SupportCase supportCase, CaseUpdateRequest request) {
@@ -213,15 +214,18 @@ public class SupportCaseController {
             String description, String priority, String status, String sla_due_at, boolean sla_breached,
             String created_at, String resolved_at) {
 
-        static CaseResponse from(SupportCase c, Instant now) {
-            Customer customer = c.getCustomer();
+        /** Without {@code showCustomer} the customer is left out. */
+        static CaseResponse from(SupportCase c, Instant now, boolean showCustomer) {
+            Customer customer = showCustomer ? c.getCustomer() : null;
             MobileLine line = c.getLine();
             Instant measuredAt = c.getResolvedAt() != null ? c.getResolvedAt() : now;
-            return new CaseResponse(c.getId(), c.getCaseNumber(), customer.getId(), customer.getCustomerNumber(),
-                    customer.displayName(), line != null ? line.getId() : null, line != null ? line.getMsisdn() : null,
-                    c.getCategory().name(), c.getChannel().name(), c.getSubject(), c.getDescription(),
-                    c.getPriority().name(), c.getStatus().name(), Times.iso(c.getSlaDueAt()),
-                    measuredAt.isAfter(c.getSlaDueAt()), Times.iso(c.getCreatedAt()), Times.iso(c.getResolvedAt()));
+            return new CaseResponse(c.getId(), c.getCaseNumber(), customer != null ? customer.getId() : null,
+                    customer != null ? customer.getCustomerNumber() : null,
+                    customer != null ? customer.displayName() : null, line != null ? line.getId() : null,
+                    line != null ? line.getMsisdn() : null, c.getCategory().name(), c.getChannel().name(),
+                    c.getSubject(), c.getDescription(), c.getPriority().name(), c.getStatus().name(),
+                    Times.iso(c.getSlaDueAt()), measuredAt.isAfter(c.getSlaDueAt()), Times.iso(c.getCreatedAt()),
+                    Times.iso(c.getResolvedAt()));
         }
     }
 }

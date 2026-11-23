@@ -16,12 +16,21 @@ import type { Device } from "@/hooks/use-devices"
 
 interface DevicesTableProps {
   devices: Device[]
+  /** Set to false for staff who may not see lines or customers; the backend leaves those fields out. */
+  showLine?: boolean
+  showCustomer?: boolean
   /** Leave out the handlers when the user may not change the inventory. */
   onEdit?: (device: Device) => void
   onDelete?: (device: Device) => void
 }
 
-export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
+export function DevicesTable({
+  devices,
+  showLine = true,
+  showCustomer = true,
+  onEdit,
+  onDelete,
+}: DevicesTableProps) {
   const hasActions = Boolean(onEdit || onDelete)
   return (
     <Table>
@@ -29,8 +38,8 @@ export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
         <TableRow>
           <TableHead>IMEI</TableHead>
           <TableHead>Device</TableHead>
-          <TableHead>Mobile number</TableHead>
-          <TableHead>Customer</TableHead>
+          {showLine && <TableHead>Mobile number</TableHead>}
+          {showCustomer && <TableHead>Customer</TableHead>}
           <TableHead>Status</TableHead>
           <TableHead>Assigned</TableHead>
           {hasActions && <TableHead className="w-[100px] text-right">Actions</TableHead>}
@@ -44,10 +53,12 @@ export function DevicesTable({ devices, onEdit, onDelete }: DevicesTableProps) {
               <div className="font-medium">{device.model}</div>
               <div className="text-muted-foreground text-xs">{device.manufacturer}</div>
             </TableCell>
-            <TableCell className="font-mono text-sm whitespace-nowrap">
-              {formatMsisdn(device.msisdn)}
-            </TableCell>
-            <TableCell>{device.customer_name || "-"}</TableCell>
+            {showLine && (
+              <TableCell className="font-mono text-sm whitespace-nowrap">
+                {formatMsisdn(device.msisdn)}
+              </TableCell>
+            )}
+            {showCustomer && <TableCell>{device.customer_name || "-"}</TableCell>}
             <TableCell>
               <StatusBadge value={device.status} />
             </TableCell>

@@ -87,8 +87,9 @@ final class CustomerSeeder {
         long customerId = nextCustomerId++;
         String status = new String[] {ACTIVE, SUSPENDED, CLOSED}[ctx.weighted(94, 3, 3)];
         boolean tourist = ctx.chance(0.04);
-        Person person = tourist ? tourist() : resident();
         Instant created = ctx.daysAgo(ctx.between(20, MAX_CUSTOMER_AGE_DAYS));
+        LocalDate joined = LocalDate.ofInstant(created, ZoneOffset.UTC);
+        Person person = tourist ? tourist(joined) : resident(joined);
         List<SeedPlan> plans = individualPlans(index, tourist, created);
         String firstMsisdn = ctx.newMsisdn();
         SgReferenceData.Estate estate = ctx.pick(SgReferenceData.ESTATES);
@@ -121,7 +122,7 @@ final class CustomerSeeder {
             String msisdn = lines.isEmpty() ? firstMsisdn : ctx.newMsisdn();
             lines.add(addLine(customerId, accountId, plan, msisdn, lineStatus(status), created, null, false));
         }
-        customers.add(new SeedCustomer(customerId, status, lines));
+        customers.add(new SeedCustomer(customerId, status, created, lines));
     }
 
     /**
@@ -166,8 +167,9 @@ final class CustomerSeeder {
         return catalog.plan(code);
     }
 
-    private Person resident() {
-        LocalDate dob = ctx.today().minusDays(ctx.between(18 * 365, 80 * 365));
+    /** A resident who was 18 to 80 years old on {@code onDate}. */
+    private Person resident(LocalDate onDate) {
+        LocalDate dob = onDate.minusYears(18).minusDays(ctx.between(0, 62 * 365));
         boolean foreigner = ctx.chance(0.16);
         int ethnicity = foreigner ? 3 : ctx.weighted(72, 16, 12);
         boolean male = ctx.chance(0.5);
@@ -196,8 +198,8 @@ final class CustomerSeeder {
                 : new Person(first, last, "NRIC", nricNumber(dob), dob);
     }
 
-    private Person tourist() {
-        LocalDate dob = ctx.today().minusDays(ctx.between(20 * 365, 65 * 365));
+    private Person tourist(LocalDate onDate) {
+        LocalDate dob = onDate.minusYears(20).minusDays(ctx.between(0, 45 * 365));
         String passport;
         do {
             passport = "P" + ctx.digits(7) + (char) ('A' + ctx.between(0, 25));
@@ -267,15 +269,15 @@ final class CustomerSeeder {
         String slug = slug(company.replace(" Pte. Ltd.", "")).replace(".", "");
         int addressIndex = ctx.between(0, SgReferenceData.BUSINESS_ADDRESSES.size() - 1);
         String uen = ctx.between(1995, 2024) + ctx.digits(5) + (char) ('A' + ctx.between(0, 25));
-        Person contact = resident();
         Instant created = ctx.daysAgo(ctx.between(200, MAX_CUSTOMER_AGE_DAYS));
+        Person contact = resident(LocalDate.ofInstant(created, ZoneOffset.UTC));
         customerRows.add(new Object[] {customerId, customerNumber(customerId), "BUSINESS", null, null, company, uen,
                 contact.first() + " " + contact.last(), null, null, null, uniqueEmail("telecom", slug + ".com.sg"),
                 "+65 6" + ctx.digits(3) + " " + ctx.digits(4), SgReferenceData.BUSINESS_ADDRESSES.get(addressIndex),
                 SgReferenceData.BUSINESS_POSTAL_CODES.get(addressIndex), ACTIVE, SeedContext.ts(created)});
 
-        int totalLines = new int[][] {{5, 15}, {16, 40}, {41, 80}}[ctx.weighted(60, 30, 10)][0];
-        totalLines = ctx.between(totalLines, totalLines * 2);
+        int[] range = new int[][] {{5, 15}, {16, 40}, {41, 80}}[ctx.weighted(60, 30, 10)];
+        int totalLines = ctx.between(range[0], range[1]);
         int accounts = Math.min(3, 1 + totalLines / 20);
         List<SeedLine> lines = new ArrayList<>();
         for (int a = 0; a < accounts; a++) {
@@ -294,7 +296,7 @@ final class CustomerSeeder {
                 lines.add(addLine(customerId, accountId, plan, ctx.newMsisdn(), status, created, user, true));
             }
         }
-        customers.add(new SeedCustomer(customerId, ACTIVE, lines));
+        customers.add(new SeedCustomer(customerId, ACTIVE, created, lines));
     }
 
     private String companyName() {
@@ -352,13 +354,13 @@ final class CustomerSeeder {
         LocalDate promotionEnds = null;
         if (business && ctx.chance(0.7)) {
             promotionId = catalog.businessPromoId();
-            promotionEnds = startDate.plusMonths(24);
         } else if (!business && portIn != null && ctx.chance(0.6)) {
             promotionId = catalog.switchPromoId();
-            promotionEnds = startDate.plusMonths(12);
         } else if (!business && ctx.chance(0.25)) {
             promotionId = ctx.pick(catalog.consumerPromoIds());
-            promotionEnds = startDate.plusMonths(6);
+        }
+        if (promotionId != null) {
+            promotionEnds = startDate.plusMonths(catalog.promotionMonths(promotionId));
         }
         boolean contract = plan.contractMonths() > 0;
         boolean recent = start.isAfter(ctx.daysAgo(365));
@@ -437,7 +439,7 @@ final class CustomerSeeder {
             boolean business) {
     }
 
-    record SeedCustomer(long id, String status, List<SeedLine> lines) {
+    record SeedCustomer(long id, String status, Instant createdAt, List<SeedLine> lines) {
         SeedCustomer {
             lines = List.copyOf(lines);
         }

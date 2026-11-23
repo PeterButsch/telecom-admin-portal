@@ -21,18 +21,28 @@ import {
 } from "@/hooks/use-devices"
 import { options } from "@/lib/labels"
 
+// Same rule as the backend's SearchTerms: only number-like queries search IMEIs and numbers,
+// so "iPhone 16" does not match every IMEI containing "16".
+const NUMBER_LIKE = /^[+0-9 ()-]+$/
+const MIN_DIGITS = 3
+
 function matches(device: Device, query: string) {
   const text = query.toLowerCase()
-  const digits = query.replace(/\D/g, "")
+  const digits = NUMBER_LIKE.test(query) ? query.replace(/\D/g, "") : ""
   return (
     `${device.manufacturer} ${device.model}`.toLowerCase().includes(text) ||
     (device.customer_name ?? "").toLowerCase().includes(text) ||
-    (digits.length > 0 && (device.imei.includes(digits) || (device.msisdn ?? "").includes(digits)))
+    (digits.length >= MIN_DIGITS &&
+      (device.imei.includes(digits) || (device.msisdn ?? "").includes(digits)))
   )
 }
 
 export default function DevicesPage() {
-  const canWrite = useAuth().can("DEVICE_WRITE")
+  const { can } = useAuth()
+  const canWrite = can("DEVICE_WRITE")
+  const canDelete = can("DEVICE_DELETE")
+  const showLine = can("LINE_READ")
+  const showCustomer = can("CUSTOMER_READ")
   const { devices, loading, error, createDevice, updateDevice, deleteDevice } = useDevices()
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<DeviceStatus | null>(null)
@@ -84,7 +94,13 @@ export default function DevicesPage() {
               label="Search"
               value={search}
               onChange={setSearch}
-              placeholder="IMEI, model, mobile number or customer"
+              placeholder={
+                showCustomer
+                  ? "IMEI, model, mobile number or customer"
+                  : showLine
+                    ? "IMEI, model or mobile number"
+                    : "IMEI or model"
+              }
             />
             <FilterSelect
               id="status-filter"
@@ -122,6 +138,8 @@ export default function DevicesPage() {
             <div className="h-full overflow-auto">
               <DevicesTable
                 devices={shown}
+                showLine={showLine}
+                showCustomer={showCustomer}
                 onEdit={
                   canWrite
                     ? (device) => {
@@ -130,7 +148,7 @@ export default function DevicesPage() {
                       }
                     : undefined
                 }
-                onDelete={canWrite ? setDeviceToDelete : undefined}
+                onDelete={canDelete ? setDeviceToDelete : undefined}
               />
               {shown.length === 0 && (
                 <div className="text-muted-foreground py-8 text-center">

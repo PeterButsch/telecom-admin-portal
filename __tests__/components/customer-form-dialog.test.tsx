@@ -115,6 +115,16 @@ describe("CustomerFormDialog", () => {
     expect(body).not.toHaveProperty("idNumber")
   })
 
+  it("clears the postal code when it is emptied", async () => {
+    const { onSubmit } = renderForm({ customer })
+
+    fireEvent.change(screen.getByLabelText("Postal code"), { target: { value: "  " } })
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ postalCode: "" })
+  })
+
   it("shows the masked ID and never an input for the ID number when editing", () => {
     renderForm({ customer })
 

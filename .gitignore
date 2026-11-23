@@ -80,7 +80,3 @@ out/
 
 # IDE - VS Code
 .vscode/
-
-# Python
-scripts/__pycache__/
-*.pyc

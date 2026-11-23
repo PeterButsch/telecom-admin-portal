@@ -117,6 +117,11 @@ describe("apiFetch", () => {
 
     await expect(apiFetch("/api/customers")).rejects.toMatchObject({ status: 401 })
     expect(handler).toHaveBeenCalledTimes(1)
+
+    await expect(
+      apiFetch("/api/auth/password", { method: "POST", body: { newPassword: "x" } })
+    ).rejects.toMatchObject({ status: 401 })
+    expect(handler).toHaveBeenCalledTimes(2)
     remove()
   })
 

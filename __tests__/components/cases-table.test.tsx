@@ -43,6 +43,19 @@ describe("CasesTable", () => {
     expect(screen.getAllByText("Breached")).toHaveLength(1)
   })
 
+  it("shows only the mobile number to staff who may not read customers", () => {
+    render(
+      <CasesTable
+        cases={[{ ...base, customer_name: null, customer_number: null }]}
+        showCustomer={false}
+      />
+    )
+
+    expect(screen.getByRole("columnheader", { name: "Mobile number" })).toBeInTheDocument()
+    expect(screen.queryByRole("columnheader", { name: "Customer" })).not.toBeInTheDocument()
+    expect(screen.getByText("9123 4567")).toBeInTheDocument()
+  })
+
   it("does not allow closed cases to be edited", () => {
     const onEdit = vi.fn()
     render(

@@ -74,7 +74,7 @@ function CustomerForm({
       email: email.trim(),
       phone: phone.trim(),
       addressLine: addressLine.trim(),
-      postalCode: optional(postalCode),
+      postalCode: postalCode.trim(),
     }
     const names = business
       ? { companyName: companyName.trim(), contactName: contactName.trim() }
@@ -85,7 +85,14 @@ function CustomerForm({
     const identity = business
       ? { uen: uen.trim() }
       : { idType, idNumber: idNumber.trim(), dateOfBirth: optional(dateOfBirth) }
-    return { type, ...names, ...identity, ...contact, addressLine: optional(addressLine) }
+    return {
+      type,
+      ...names,
+      ...identity,
+      ...contact,
+      addressLine: optional(addressLine),
+      postalCode: optional(postalCode),
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

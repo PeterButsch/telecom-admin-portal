@@ -7,8 +7,14 @@
 
     <!-- Exclude test classes from security checks -->
     <Match>
-        <Source name="~.*Test\.java"/>
+        <Source name="~.*(Test|TestSupport)\.java"/>
         <Bug category="SECURITY"/>
+    </Match>
+
+    <!-- Test request bodies are JSON text blocks filled with formatted(); their newlines are not output line endings. -->
+    <Match>
+        <Source name="~.*(Test|TestSupport)\.java"/>
+        <Bug pattern="VA_FORMAT_STRING_USES_NEWLINE"/>
     </Match>
 
     <!-- Exclude JPA entity equals/hashCode warnings (intentional design) -->

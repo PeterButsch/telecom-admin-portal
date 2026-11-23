@@ -25,9 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
  * business).</li>
  * <li>A line is in service from activation until termination, whatever its
  * status in between (suspended and barred lines still count).</li>
- * <li>Churn for a period is the lines terminated in it divided by the lines in
- * service at its start. Port-ins are activations that came from another
- * operator, port-outs terminations that moved to one.</li>
+ * <li>Churn for a period is the lines in service at its start that were
+ * terminated in it, divided by the lines in service at its start, so it never
+ * exceeds 100%. Lines both activated and terminated in the period count as
+ * terminations but not as churn. Port-ins are activations that came from
+ * another operator, port-outs terminations that moved to one.</li>
  * <li>Months are calendar months in Singapore time; the current month runs
  * until now.</li>
  * </ul>
@@ -53,7 +55,8 @@ public class DashboardOverviewService {
                    COALESCE(SUM(activated_at >= ?1 AND activated_at < ?2), 0),
                    COALESCE(SUM(activated_at >= ?1 AND activated_at < ?2 AND port_in_from IS NOT NULL), 0),
                    COALESCE(SUM(terminated_at >= ?1 AND terminated_at < ?2), 0),
-                   COALESCE(SUM(terminated_at >= ?1 AND terminated_at < ?2 AND port_out_to IS NOT NULL), 0)
+                   COALESCE(SUM(terminated_at >= ?1 AND terminated_at < ?2 AND port_out_to IS NOT NULL), 0),
+                   COALESCE(SUM(activated_at < ?1 AND terminated_at >= ?1 AND terminated_at < ?2), 0)
             FROM mobile_lines
             """;
 
@@ -142,9 +145,8 @@ public class DashboardOverviewService {
     }
 
     private Movement movement(Instant start, Instant end) {
-        return jdbc.queryForObject(MOVEMENT_SQL,
-                (rs, i) -> new Movement(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5)),
-                db(start), db(end));
+        return jdbc.queryForObject(MOVEMENT_SQL, (rs, i) -> new Movement(rs.getLong(1), rs.getLong(2), rs.getLong(3),
+                rs.getLong(4), rs.getLong(5), rs.getLong(6)), db(start), db(end));
     }
 
     private List<OperatorFigures> porting(Instant start, Instant end) {
@@ -207,9 +209,9 @@ public class DashboardOverviewService {
                 : BigDecimal.valueOf(part).multiply(HUNDRED).divide(BigDecimal.valueOf(whole), 2, RoundingMode.HALF_UP);
     }
 
-    private record Movement(long base, long activations, long portIns, long terminations, long portOuts) {
+    private record Movement(long base, long activations, long portIns, long terminations, long portOuts, long churned) {
         BigDecimal churnRate() {
-            return percent(terminations, base);
+            return percent(churned, base);
         }
     }
 

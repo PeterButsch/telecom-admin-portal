@@ -8,6 +8,7 @@ import static com.example.telecom.security.Permission.CUSTOMER_DELETE;
 import static com.example.telecom.security.Permission.CUSTOMER_READ;
 import static com.example.telecom.security.Permission.CUSTOMER_WRITE;
 import static com.example.telecom.security.Permission.DASHBOARD_READ;
+import static com.example.telecom.security.Permission.DEVICE_DELETE;
 import static com.example.telecom.security.Permission.DEVICE_READ;
 import static com.example.telecom.security.Permission.DEVICE_WRITE;
 import static com.example.telecom.security.Permission.LINE_READ;
@@ -108,11 +109,12 @@ public class SecurityConfig {
                 .hasAuthority(CASE_READ.name()).requestMatchers(CASES).hasAuthority(CASE_WRITE.name())
                 .requestMatchers(GET, PLANS, "/api/add-ons/**", "/api/promotions/**").hasAuthority(CATALOG_READ.name())
                 .requestMatchers(PLANS).hasAuthority(PLAN_WRITE.name()).requestMatchers(GET, DEVICES)
-                .hasAuthority(DEVICE_READ.name()).requestMatchers(DEVICES).hasAuthority(DEVICE_WRITE.name())
-                .requestMatchers(GET, "/api/usage/**").hasAuthority(USAGE_READ.name())
-                .requestMatchers(GET, "/api/dashboard/**").hasAuthority(DASHBOARD_READ.name())
-                .requestMatchers(GET, "/api/audit-events/**").hasAuthority(AUDIT_READ.name())
-                .requestMatchers("/api/staff-users/**").hasAuthority(STAFF_ADMIN.name()).anyRequest().denyAll();
+                .hasAuthority(DEVICE_READ.name()).requestMatchers(DELETE, DEVICES).hasAuthority(DEVICE_DELETE.name())
+                .requestMatchers(DEVICES).hasAuthority(DEVICE_WRITE.name()).requestMatchers(GET, "/api/usage/**")
+                .hasAuthority(USAGE_READ.name()).requestMatchers(GET, "/api/dashboard/**")
+                .hasAuthority(DASHBOARD_READ.name()).requestMatchers(GET, "/api/audit-events/**")
+                .hasAuthority(AUDIT_READ.name()).requestMatchers("/api/staff-users/**").hasAuthority(STAFF_ADMIN.name())
+                .anyRequest().denyAll();
     }
 
     private static AuthenticationEntryPoint entryPoint() {

@@ -17,19 +17,21 @@ import type { SupportCase } from "@/hooks/use-cases"
 
 interface CasesTableProps {
   cases: SupportCase[]
+  /** Set to false for staff who may not read customers; only the mobile number is shown. */
+  showCustomer?: boolean
   /** Leave out when the user may not update cases; the edit button is then hidden. */
   onEdit?: (supportCase: SupportCase) => void
 }
 
 const DONE = new Set(["RESOLVED", "CLOSED"])
 
-export function CasesTable({ cases, onEdit }: CasesTableProps) {
+export function CasesTable({ cases, showCustomer = true, onEdit }: CasesTableProps) {
   return (
     <Table>
       <TableHeader className="bg-background sticky top-0 z-10">
         <TableRow>
           <TableHead>Case no.</TableHead>
-          <TableHead>Customer</TableHead>
+          <TableHead>{showCustomer ? "Customer" : "Mobile number"}</TableHead>
           <TableHead>Subject</TableHead>
           <TableHead>Priority</TableHead>
           <TableHead>Status</TableHead>
@@ -42,13 +44,19 @@ export function CasesTable({ cases, onEdit }: CasesTableProps) {
         {cases.map((supportCase) => (
           <TableRow key={supportCase.id}>
             <TableCell className="font-mono text-sm">{supportCase.case_number}</TableCell>
-            <TableCell>
-              <div className="font-medium">{supportCase.customer_name}</div>
-              <div className="text-muted-foreground text-xs">
-                {supportCase.customer_number}
-                {supportCase.msisdn ? ` · ${formatMsisdn(supportCase.msisdn)}` : ""}
-              </div>
-            </TableCell>
+            {showCustomer ? (
+              <TableCell>
+                <div className="font-medium">{supportCase.customer_name}</div>
+                <div className="text-muted-foreground text-xs">
+                  {supportCase.customer_number}
+                  {supportCase.msisdn ? ` · ${formatMsisdn(supportCase.msisdn)}` : ""}
+                </div>
+              </TableCell>
+            ) : (
+              <TableCell className="font-mono text-sm whitespace-nowrap">
+                {supportCase.msisdn ? formatMsisdn(supportCase.msisdn) : "-"}
+              </TableCell>
+            )}
             <TableCell className="max-w-[220px]">
               <div className="truncate">{supportCase.subject}</div>
               <div className="text-muted-foreground text-xs">

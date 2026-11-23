@@ -16,7 +16,8 @@ public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
               AND (:entityType IS NULL OR e.entityType = :entityType)
               AND (:entityId IS NULL OR e.entityId = :entityId)
               AND (:outcome IS NULL OR e.outcome = :outcome)
-              AND (:text IS NULL OR LOWER(e.summary) LIKE :text OR LOWER(e.actorUsername) LIKE :text)
+              AND (:text IS NULL OR LOWER(e.summary) LIKE :text ESCAPE '!'
+                   OR LOWER(e.actorUsername) LIKE :text ESCAPE '!')
               AND (:from IS NULL OR e.occurredAt >= :from)
               AND (:to IS NULL OR e.occurredAt < :to)
             ORDER BY e.occurredAt DESC, e.id DESC

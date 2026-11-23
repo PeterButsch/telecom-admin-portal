@@ -44,7 +44,7 @@ final class ActivitySeeder {
         for (SeedLine line : lines) {
             boolean live = ACTIVE.equals(line.status()) || "SUSPENDED".equals(line.status())
                     || "BARRED".equals(line.status());
-            boolean handsetPlan = line.plan().contractMonths() > 0 && !line.plan().dataOnly();
+            boolean handsetPlan = line.plan().contractMonths() > 0 && !line.plan().dataOnly() && !line.plan().simOnly();
             if (live && handsetPlan && (!line.business() || ctx.chance(0.7))) {
                 SgReferenceData.DeviceModel model = ctx.pick(SgReferenceData.DEVICE_MODELS);
                 rows.add(new Object[] {ctx.newImei(model.tac()), model.manufacturer(), model.model(), "ASSIGNED",
@@ -144,13 +144,15 @@ final class ActivitySeeder {
             SeedCustomer customer = ctx.pick(eligible);
             SgReferenceData.CaseTemplate template = ctx.pick(SgReferenceData.CASE_TEMPLATES);
             boolean accountLevel = "BILLING".equals(template.category()) || "GENERAL".equals(template.category());
-            Long lineId = accountLevel ? null : ctx.pick(customer.lines()).id();
+            List<SeedLine> activated = customer.lines().stream().filter(l -> l.activatedAt() != null).toList();
+            SeedLine line = accountLevel || activated.isEmpty() ? null : ctx.pick(activated);
+            Long lineId = line != null ? line.id() : null;
             String priority = new String[] {"LOW", "MEDIUM", "HIGH", "URGENT"}[ctx.weighted(20, 50, 24, 6)];
             if ("SCAM_REPORT".equals(template.category()) && ("LOW".equals(priority) || "MEDIUM".equals(priority))) {
                 priority = "HIGH";
             }
             int slaHours = SupportCase.Priority.valueOf(priority).slaHours();
-            Instant created = ctx.randomBetween(ctx.daysAgo(CASE_WINDOW_DAYS), ctx.daysAgo(0.02));
+            Instant created = caseOpened(customer, line);
             double slaShare = ctx.chance(0.85) ? ctx.between(0.1, 0.95) : ctx.between(1.05, 2.5);
             Instant resolved = created.plusSeconds((long) (slaHours * 3600 * slaShare));
             boolean recent = created.isAfter(ctx.daysAgo(RECENT_DAYS));
@@ -172,6 +174,25 @@ final class ActivitySeeder {
                 .batchUpdate("INSERT INTO support_cases (id, case_number, customer_id, line_id, category, channel,"
                         + " subject, description, priority, status, sla_due_at, created_at, resolved_at)"
                         + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", rows);
+    }
+
+    /**
+     * A time in the recent case window when the customer existed and the line was
+     * in service; for lines that ended before the window, a time before they ended.
+     */
+    private Instant caseOpened(SeedCustomer customer, SeedLine line) {
+        Instant from = later(ctx.daysAgo(CASE_WINDOW_DAYS), customer.createdAt());
+        Instant to = ctx.daysAgo(0.02);
+        if (line != null) {
+            from = later(from, line.activatedAt());
+            if (line.terminatedAt() != null && line.terminatedAt().isBefore(to)) {
+                to = line.terminatedAt();
+            }
+            if (!from.isBefore(to)) {
+                from = later(customer.createdAt(), line.activatedAt());
+            }
+        }
+        return ctx.randomBetween(from, to);
     }
 
     private static Instant later(Instant a, Instant b) {

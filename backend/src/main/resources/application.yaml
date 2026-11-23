@@ -4,8 +4,9 @@ spring:
   datasource:
     # APP_DB_PATH overrides the database file; the default is relative to the working directory (backend/).
     # foreign_keys=true makes SQLite enforce the REFERENCES clauses in the schema.
-    # date_class=TEXT stores timestamps as "yyyy-MM-dd HH:mm:ss.SSS" (UTC), the same format the seed script
-    # writes. The driver default (epoch millis) breaks range filters, because SQLite sorts integers before text.
+    # date_class=TEXT stores timestamps as "yyyy-MM-dd HH:mm:ss.SSS" (UTC), the same format the demo data
+    # seeder (SeedContext.TIMESTAMP) writes. The driver default (epoch millis) breaks range filters, because
+    # SQLite sorts integers before text.
     # journal_mode=WAL lets readers continue while a write is in progress.
     url: jdbc:sqlite:${APP_DB_PATH:app.db}?foreign_keys=true&busy_timeout=5000&date_class=TEXT&journal_mode=WAL
     driver-class-name: org.sqlite.JDBC

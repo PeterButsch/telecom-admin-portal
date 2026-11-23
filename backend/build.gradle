@@ -39,6 +39,11 @@ dependencies {
 	spotbugsPlugins 'com.h3xstream.findsecbugs:findsecbugs-plugin:1.13.0'
 }
 
+// Only build the executable boot jar, so build/libs holds a single jar for `java -jar build/libs/*.jar`.
+tasks.named('jar') {
+	enabled = false
+}
+
 tasks.named('test') {
 	useJUnitPlatform()
 	finalizedBy jacocoTestReport
@@ -127,6 +132,7 @@ pmdMain {
 
 pmdTest {
 	source = sourceSets.test.allJava
+	ruleSetFiles = files("${rootDir}/config/pmd-test-ruleset.xml")
 }
 
 // Combined lint task

@@ -9,9 +9,7 @@ import com.example.telecom.error.BadRequestException;
 import com.example.telecom.model.AuditEvent;
 import com.example.telecom.repository.AuditEventRepository;
 import com.example.telecom.security.StaffRole;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -34,7 +32,7 @@ public class AuditEventController {
 
     /**
      * Lists events newest first. {@code q} matches the summary or username;
-     * dateFrom and dateTo are inclusive calendar days in UTC.
+     * dateFrom and dateTo are inclusive calendar days in Singapore time.
      */
     @GetMapping
     @Transactional(readOnly = true)
@@ -50,17 +48,13 @@ public class AuditEventController {
         }
         return PageResponse.of(
                 repository.findFiltered(name(action), name(entityType), CustomerController.trimToNull(entityId),
-                        outcome, SearchTerms.of(q).text(), startOf(dateFrom),
-                        startOf(dateTo != null ? dateTo.plusDays(1) : null), Paging.of(page, size)),
+                        outcome, SearchTerms.of(q).text(), Times.startOfDay(dateFrom),
+                        Times.startOfDay(dateTo != null ? dateTo.plusDays(1) : null), Paging.of(page, size)),
                 AuditEventResponse::from);
     }
 
     private static String name(Enum<?> value) {
         return value != null ? value.name() : null;
-    }
-
-    private static Instant startOf(LocalDate day) {
-        return day != null ? day.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
     }
 
     /** The values the action and entity type filters accept. */

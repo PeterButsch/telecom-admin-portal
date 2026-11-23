@@ -88,6 +88,46 @@ class AuthApiTest extends IntegrationTestSupport {
     }
 
     @Test
+    void parallelWrongPasswordsLockTheAccountOnce() throws Exception {
+        List<Integer> statuses = inParallel(12, i -> login("care_agent", "wrong-password-" + i));
+        assertTrue(statuses.stream().allMatch(s -> s == 401), statuses.toString());
+        login("care_agent", STAFF_PASSWORD).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.startsWith("This account is locked")));
+        assertEquals(1, auditEvents().stream().filter(e -> "ACCOUNT_LOCKED".equals(e.get("action"))).count());
+    }
+
+    @Test
+    void parallelSignInsToOneAccountAllSucceed() throws Exception {
+        List<Integer> statuses = inParallel(12, i -> login("care_agent", STAFF_PASSWORD));
+        assertTrue(statuses.stream().allMatch(s -> s == 200), statuses.toString());
+    }
+
+    @FunctionalInterface
+    private interface Attempt {
+        org.springframework.test.web.servlet.ResultActions run(int index) throws Exception;
+    }
+
+    private static List<Integer> inParallel(int count, Attempt attempt) throws Exception {
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        try (java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(count)) {
+            List<java.util.concurrent.Future<Integer>> results = new java.util.ArrayList<>();
+            for (int i = 0; i < count; i++) {
+                int index = i;
+                results.add(pool.submit(() -> {
+                    start.await();
+                    return attempt.run(index).andReturn().getResponse().getStatus();
+                }));
+            }
+            start.countDown();
+            List<Integer> statuses = new java.util.ArrayList<>();
+            for (java.util.concurrent.Future<Integer> result : results) {
+                statuses.add(result.get());
+            }
+            return statuses;
+        }
+    }
+
+    @Test
     void aSuccessfulSignInResetsTheFailureCount() throws Exception {
         login("care_agent", "wrong-password-1").andExpect(status().isUnauthorized());
         login("care_agent", STAFF_PASSWORD).andExpect(status().isOk());

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.example.telecom.model.IdentityNumbers;
 import java.time.LocalDate;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 
 class CustomerApiTest extends IntegrationTestSupport {
@@ -25,7 +26,7 @@ class CustomerApiTest extends IntegrationTestSupport {
     @Test
     void createsAnIndividualAndOnlyReturnsTheMaskedId() throws Exception {
         String nric = validNric();
-        postJson("/api/customers", individual("NRIC", nric.toLowerCase(), "1990-01-01", "siti@example.com"))
+        postJson("/api/customers", individual("NRIC", nric.toLowerCase(Locale.ROOT), "1990-01-01", "siti@example.com"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.customer_number").value("C1000003"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.id_number_masked").value("*****345" + nric.charAt(8)))
@@ -86,6 +87,34 @@ class CustomerApiTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.content[0].id").value(2));
         mockMvc.perform(get("/api/customers").param("q", ADA_NRIC)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void searchFindsTheContactPhoneInAnyFormat() throws Exception {
+        for (String q : new String[] {"6123 4567", "+65 6123-4567", "61234567"}) {
+            mockMvc.perform(get("/api/customers").param("q", q)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].id").value(2));
+        }
+    }
+
+    @Test
+    void searchTreatsWildcardsLiterally() throws Exception {
+        jdbc.update("UPDATE customers SET email = 'ada_tan@example.com' WHERE id = 1");
+        mockMvc.perform(get("/api/customers").param("q", "_")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1)).andExpect(jsonPath("$.content[0].id").value(1));
+        mockMvc.perform(get("/api/customers").param("q", "ada_tan")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(get("/api/customers").param("q", "%")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    void anEmptyPostalCodeClearsIt() throws Exception {
+        patchJson("/api/customers/1", "{\"postalCode\":\"\"}").andExpect(status().isOk())
+                .andExpect(jsonPath("$.postal_code").value(org.hamcrest.Matchers.nullValue()));
+        patchJson("/api/customers/1", "{\"postalCode\":\"12345\"}").andExpect(status().isBadRequest());
+        patchJson("/api/customers/1", "{\"postalCode\":\"560456\"}").andExpect(status().isOk())
+                .andExpect(jsonPath("$.postal_code").value("560456"));
     }
 
     @Test

@@ -3,6 +3,8 @@ const CSRF_COOKIE = "XSRF-TOKEN"
 const CSRF_HEADER = "X-XSRF-TOKEN"
 const CSRF_TITLE = "Invalid CSRF token"
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"])
+/** Auth calls whose 401 means "not signed in yet" rather than "the session has ended". */
+const SIGN_IN_PATHS = new Set(["/api/auth/login", "/api/auth/logout", "/api/auth/me"])
 
 /** Error raised for any failed API call, carrying a message that is safe to show to the user. */
 export class ApiError extends Error {
@@ -66,7 +68,10 @@ async function csrfToken(refresh = false): Promise<string | null> {
   const existing = refresh ? null : readCookie(CSRF_COOKIE)
   if (existing) return existing
   try {
-    await fetch("/api/auth/csrf", { headers: { Accept: "application/json" } })
+    await fetch("/api/auth/csrf", {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    })
   } catch {
     // The request that needs the token reports the connection problem.
   }
@@ -134,7 +139,7 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
       error = res.ok ? error : await toApiError(res)
     }
     if (!res.ok) {
-      if (error.status === 401 && !path.startsWith("/api/auth/")) {
+      if (error.status === 401 && !SIGN_IN_PATHS.has(path)) {
         onUnauthorized?.()
       }
       throw error

@@ -25,15 +25,17 @@ class UsageAndCaseApiTest extends IntegrationTestSupport {
     }
 
     @Test
-    void usageDateRangeCoversWholeUtcDays() throws Exception {
-        usage(1, "DATA", "2026-01-31 23:59:59.999");
-        usage(1, "DATA", "2026-02-01 00:00:00.000");
-        usage(1, "SMS", "2026-02-01 23:59:59.999");
-        usage(1, "DATA", "2026-02-02 00:00:00.000");
+    void usageDateRangeCoversWholeSingaporeDays() throws Exception {
+        // 1 February in Singapore runs from 31 January 16:00 to 1 February 16:00 UTC.
+        usage(1, "DATA", "2026-01-31 15:59:59.999");
+        usage(1, "DATA", "2026-01-31 16:00:00.000");
+        usage(1, "SMS", "2026-02-01 15:59:59.999");
+        usage(1, "DATA", "2026-02-01 16:00:00.000");
         mockMvc.perform(get("/api/usage").param("dateFrom", "2026-02-01").param("dateTo", "2026-02-01"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2))
-                .andExpect(jsonPath("$.content[0].recorded_at").value("2026-02-01T23:59:59.999Z"))
-                .andExpect(jsonPath("$.content[0].unit").value("SMS"));
+                .andExpect(jsonPath("$.content[0].recorded_at").value("2026-02-01T15:59:59.999Z"))
+                .andExpect(jsonPath("$.content[0].unit").value("SMS"))
+                .andExpect(jsonPath("$.content[1].recorded_at").value("2026-01-31T16:00:00Z"));
     }
 
     @Test

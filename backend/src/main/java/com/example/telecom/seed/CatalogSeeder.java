@@ -1,7 +1,9 @@
 package com.example.telecom.seed;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Seeds the plan, add-on and promotion catalogues. */
 final class CatalogSeeder {
@@ -23,7 +25,9 @@ final class CatalogSeeder {
     Catalog seed() {
         List<SeedPlan> plans = seedPlans();
         List<Long> addOns = seedAddOns();
-        String validFrom = SeedContext.date(ctx.today().minusYears(3));
+        // Before the oldest seeded line, so every promotion was on offer when its line
+        // started.
+        String validFrom = SeedContext.date(ctx.today().minusYears(4));
         String insert = "INSERT INTO promotions (id, code, name, discount_type, discount_value, duration_months,"
                 + " valid_from, valid_to, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         List<Object[]> rows = List.of(
@@ -34,7 +38,11 @@ final class CatalogSeeder {
                 new Object[] {4, "FAMILY15", "15% off each family line", "PERCENT", 15, 24, validFrom, null, 1},
                 new Object[] {5, "BIZ5", "5% corporate volume discount", "PERCENT", 5, 24, validFrom, null, 1});
         ctx.jdbc().batchUpdate(insert, rows);
-        return new Catalog(plans, addOns, 2, List.of(1L, 3L, 4L), 5);
+        Map<Long, Integer> months = new HashMap<>();
+        for (Object[] row : rows) {
+            months.put(((Integer) row[0]).longValue(), (Integer) row[5]);
+        }
+        return new Catalog(plans, addOns, 2, List.of(1L, 3L, 4L), 5, months);
     }
 
     private List<SeedPlan> seedPlans() {
@@ -107,16 +115,25 @@ final class CatalogSeeder {
         boolean dataOnly() {
             return "DATA_ONLY".equals(category);
         }
+
+        boolean simOnly() {
+            return "SIM_ONLY".equals(category);
+        }
     }
 
     /** Seeded catalogue ids grouped by how customers use them. */
     record Catalog(List<SeedPlan> plans, List<Long> addOnIds, long switchPromoId, List<Long> consumerPromoIds,
-            long businessPromoId) {
+            long businessPromoId, Map<Long, Integer> promotionMonths) {
 
         Catalog {
             plans = List.copyOf(plans);
             addOnIds = List.copyOf(addOnIds);
             consumerPromoIds = List.copyOf(consumerPromoIds);
+            promotionMonths = Map.copyOf(promotionMonths);
+        }
+
+        int promotionMonths(long promotionId) {
+            return promotionMonths.get(promotionId);
         }
 
         SeedPlan plan(String code) {

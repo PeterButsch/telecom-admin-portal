@@ -28,7 +28,8 @@ class SearchTermsTest {
     }
 
     @Test
-    void likeWildcardsAreIgnored() {
-        assertEquals("%abc%", SearchTerms.of("a%b_c").text());
+    void likeWildcardsAreEscapedToMatchThemselves() {
+        assertEquals("%a!%b!_c%", SearchTerms.of("a%b_c").text());
+        assertEquals("%50!! off%", SearchTerms.of("50! off").text());
     }
 }

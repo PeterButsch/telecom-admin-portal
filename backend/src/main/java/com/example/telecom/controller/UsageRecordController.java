@@ -8,10 +8,10 @@ import com.example.telecom.model.Customer;
 import com.example.telecom.model.MobileLine;
 import com.example.telecom.model.UsageRecord;
 import com.example.telecom.repository.UsageRecordRepository;
+import com.example.telecom.security.Permission;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -35,7 +35,7 @@ public class UsageRecordController {
 
     /**
      * Lists usage newest first. dateFrom and dateTo are inclusive calendar days in
-     * UTC.
+     * Singapore time.
      */
     @GetMapping
     @Transactional(readOnly = true)
@@ -49,11 +49,11 @@ public class UsageRecordController {
             throw new BadRequestException("dateFrom must be on or before dateTo.");
         }
         String number = DeviceController.parseMsisdn(msisdn);
-        Instant from = dateFrom != null ? dateFrom.atStartOfDay().toInstant(ZoneOffset.UTC) : null;
-        Instant toExclusive = dateTo != null ? dateTo.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC) : null;
-        return PageResponse.of(
-                repository.findFiltered(type, lineId, number, customerId, from, toExclusive, Paging.of(page, size)),
-                UsageRecordResponse::from);
+        Instant from = Times.startOfDay(dateFrom);
+        Instant toExclusive = Times.startOfDay(dateTo != null ? dateTo.plusDays(1) : null);
+        boolean customers = Permission.CUSTOMER_READ.isGranted();
+        return PageResponse.of(repository.findFiltered(type, lineId, number, customers ? customerId : null, from,
+                toExclusive, Paging.of(page, size)), u -> UsageRecordResponse.from(u, customers));
     }
 
     /**
@@ -63,12 +63,13 @@ public class UsageRecordController {
     public record UsageRecordResponse(Long id, Long line_id, String msisdn, Long customer_id, String customer_name,
             String type, BigDecimal quantity, String unit, BigDecimal cost, boolean roaming, String recorded_at) {
 
-        static UsageRecordResponse from(UsageRecord u) {
+        static UsageRecordResponse from(UsageRecord u, boolean showCustomer) {
             MobileLine line = u.getLine();
             Customer customer = line.getAccount().getCustomer();
-            return new UsageRecordResponse(u.getId(), line.getId(), line.getMsisdn(), customer.getId(),
-                    customer.displayName(), u.getType().name(), u.getQuantity(), unit(u.getType()),
-                    CustomerController.toMoney(u.getCost()), u.isRoaming(), Times.iso(u.getRecordedAt()));
+            return new UsageRecordResponse(u.getId(), line.getId(), line.getMsisdn(),
+                    showCustomer ? customer.getId() : null, showCustomer ? customer.displayName() : null,
+                    u.getType().name(), u.getQuantity(), unit(u.getType()), CustomerController.toMoney(u.getCost()),
+                    u.isRoaming(), Times.iso(u.getRecordedAt()));
         }
 
         private static String unit(UsageRecord.Type type) {
