@@ -3,6 +3,9 @@ package com.example.telecom.controller;
 import com.example.telecom.api.Times;
 import com.example.telecom.dashboard.DashboardOverviewService;
 import com.example.telecom.dashboard.DashboardOverviewService.Overview;
+import com.example.telecom.dashboard.InsightService;
+import com.example.telecom.dashboard.InsightService.Access;
+import com.example.telecom.dashboard.InsightService.Insights;
 import com.example.telecom.model.Customer;
 import com.example.telecom.model.Device;
 import com.example.telecom.model.MobileLine;
@@ -35,15 +38,17 @@ public class DashboardController {
     private final DeviceRepository deviceRepository;
     private final SupportCaseRepository caseRepository;
     private final DashboardOverviewService overviewService;
+    private final InsightService insightService;
 
     public DashboardController(CustomerRepository customerRepository, MobileLineRepository lineRepository,
             DeviceRepository deviceRepository, SupportCaseRepository caseRepository,
-            DashboardOverviewService overviewService) {
+            DashboardOverviewService overviewService, InsightService insightService) {
         this.customerRepository = customerRepository;
         this.lineRepository = lineRepository;
         this.deviceRepository = deviceRepository;
         this.caseRepository = caseRepository;
         this.overviewService = overviewService;
+        this.insightService = insightService;
     }
 
     /**
@@ -54,6 +59,15 @@ public class DashboardController {
     @GetMapping("/overview")
     public Overview getOverview() {
         return overviewService.overview(Times.now());
+    }
+
+    /**
+     * Usage and plan alerts, most severe first. See {@link InsightService} for the
+     * checks; each needs the permissions in {@link Access}.
+     */
+    @GetMapping("/insights")
+    public Insights getInsights() {
+        return insightService.insights(Times.now(), Access.current());
     }
 
     @GetMapping("/stats")

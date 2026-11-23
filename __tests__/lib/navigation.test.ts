@@ -10,6 +10,7 @@ describe("navigation", () => {
     expect(requiredPermission("/customers/42")).toBe("CUSTOMER_READ")
     expect(requiredPermission("/staff")).toBe("STAFF_ADMIN")
     expect(requiredPermission("/audit")).toBe("AUDIT_READ")
+    expect(requiredPermission("/insights")).toBe("DASHBOARD_READ")
     expect(requiredPermission("/login")).toBeNull()
     expect(requiredPermission("/customers-export")).toBeNull()
   })
@@ -17,7 +18,12 @@ describe("navigation", () => {
   it("only lists pages the role may open and marks the current one", () => {
     const items = visibleNavItems((p) => productManager.includes(p), "/plans")
 
-    expect(items.map((item) => item.title)).toEqual(["Dashboard", "Plans", "Devices"])
+    expect(items.map((item) => item.title)).toEqual([
+      "Dashboard",
+      "Alerts & Insights",
+      "Plans",
+      "Devices",
+    ])
     expect(items.filter((item) => item.isActive).map((item) => item.title)).toEqual(["Plans"])
   })
 

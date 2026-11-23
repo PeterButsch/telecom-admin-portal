@@ -21,6 +21,10 @@ with Next.js and Spring Boot.
   plans for consumer and enterprise segments
 - **Devices** - Handset inventory with IMEI and the line each device is assigned to
 - **Usage** - Call, data and SMS records per line, including roaming
+- **Alerts & Insights** - One list of alerts from usage and the plan catalogue: high roaming
+  charges in the last 7 days of usage, lines on retired plans, contracts and promotional
+  discounts ending in the next 30 days, and lines out of contract. Filter by area and severity;
+  each role only sees the details it may read.
 - **Support Cases** - Customer cases with category, channel, priority and SLA tracking
 - **Sign-in and roles** - Staff sign in with their own account; each role only sees the pages
   and actions its job needs, both in the UI and in the API
@@ -60,8 +64,11 @@ with Next.js and Spring Boot.
 ### Setup
 
 ```bash
-pnpm setup    # Install dependencies
+pnpm run setup    # Install dependencies
 ```
+
+If `backend/app.db` was created by an older version of this project (before Flyway), the
+backend will not start until you run `pnpm reset:db` once.
 
 ### Demo Data
 
@@ -74,10 +81,10 @@ day the data was generated.
 | ------------- | -------- |
 | Plans         | 15       |
 | Customers     | 605      |
-| Accounts      | 689      |
-| Mobile lines  | 1,774    |
-| Devices       | 1,085    |
-| Usage records | ~166,000 |
+| Accounts      | 720      |
+| Mobile lines  | 2,120    |
+| Devices       | 1,227    |
+| Usage records | ~203,000 |
 | Support cases | ~520     |
 
 ```bash
@@ -143,18 +150,19 @@ pnpm lint
 
 ## Application Pages
 
-| Page          | URL          | Description                       |
-| ------------- | ------------ | --------------------------------- |
-| Dashboard     | `/dashboard` | Revenue, churn, porting and SLAs  |
-| Customers     | `/customers` | Consumer and business customers   |
-| Mobile Lines  | `/lines`     | Lines, plans and contract details |
-| Plans         | `/plans`     | Plan catalogue for all brands     |
-| Devices       | `/devices`   | Handset inventory                 |
-| Usage         | `/usage`     | Call, data and SMS usage          |
-| Support Cases | `/cases`     | Customer cases with SLA tracking  |
-| Staff         | `/staff`     | Staff accounts (administrators)   |
-| Audit Log     | `/audit`     | Audit trail (team leads, fraud)   |
-| Sign in       | `/login`     | Staff sign-in                     |
+| Page              | URL          | Description                       |
+| ----------------- | ------------ | --------------------------------- |
+| Dashboard         | `/dashboard` | Revenue, churn, porting and SLAs  |
+| Alerts & Insights | `/insights`  | Roaming, contract and plan alerts |
+| Customers         | `/customers` | Consumer and business customers   |
+| Mobile Lines      | `/lines`     | Lines, plans and contract details |
+| Plans             | `/plans`     | Plan catalogue for all brands     |
+| Devices           | `/devices`   | Handset inventory                 |
+| Usage             | `/usage`     | Call, data and SMS usage          |
+| Support Cases     | `/cases`     | Customer cases with SLA tracking  |
+| Staff             | `/staff`     | Staff accounts (administrators)   |
+| Audit Log         | `/audit`     | Audit trail (team leads, fraud)   |
+| Sign in           | `/login`     | Staff sign-in                     |
 
 ## API Endpoints
 
@@ -171,6 +179,7 @@ pnpm lint
 | `/api/usage`              | GET                      | Usage records (paged)                            |
 | `/api/cases`              | GET, POST, PATCH         | Support cases (paged)                            |
 | `/api/dashboard/overview` | GET                      | Dashboard figures (revenue, churn, porting, SLA) |
+| `/api/dashboard/insights` | GET                      | Usage and plan alerts, filtered by role          |
 | `/api/dashboard/*`        | GET                      | Per-chart statistics (plans, devices, cases)     |
 | `/api/auth/*`             | GET, POST                | Sign in and out, current user, own password      |
 | `/api/staff-users`        | GET, POST, PATCH         | Staff accounts, unlock and password reset        |
@@ -202,13 +211,16 @@ the invalid fields under `errors`.
 ## API Documentation
 
 Start the backend, sign in to the portal, then open the Swagger UI at
-`http://localhost:8080/swagger-ui.html` in the same browser.
+`http://localhost:8080/swagger-ui.html` in the same browser. Use it to explore and try `GET`
+requests; requests that change data are rejected there because Swagger UI does not send the
+`X-XSRF-TOKEN` header.
 
 ## Project Structure
 
 ```
 ├── app/                    # Next.js pages
 │   ├── dashboard/          # Operations dashboard
+│   ├── insights/           # Alerts & Insights
 │   ├── customers/          # Customers
 │   ├── lines/              # Mobile lines
 │   ├── plans/              # Plan catalogue
@@ -223,6 +235,9 @@ Start the backend, sign in to the portal, then open the Swagger UI at
 │       ├── java/com/example/telecom/
 │       │   ├── api/        # Paging, search and time helpers
 │       │   ├── audit/      # Audit trail
+│       │   ├── config/     # Request size limit
+│       │   ├── dashboard/  # Dashboard figures and alerts
+│       │   ├── error/      # Error responses (RFC 9457)
 │       │   ├── security/   # Sign-in, roles and permissions
 │       │   ├── controller/ # REST controllers
 │       │   ├── model/      # JPA entities
